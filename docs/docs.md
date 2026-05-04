@@ -43,7 +43,7 @@ A productivity application that merges Pokemon-style collection mechanics with h
 
 ## 1. Economy & Customization (Gear Up)
 
-* **Currency (Gold/Stardust):** Completing habits and missions rewards the user with currency.
+* **Currency (Stardust):** Completing habits and missions rewards the user with currency.
 * **The Bazaar:** A shop where users can spend currency on:
   * **Questling Accessories:** Hats, scarves, or items that your "Equipped" Questling can wear.
   * **User Avatar Gear:** Items to customize the player's profile (swords, armor, etc.).
