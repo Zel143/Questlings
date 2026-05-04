@@ -1,6 +1,11 @@
 # Questlings
 
 Group Name: CutePalz
+Date & Time: May 05, 2026, 10:00 AM
+Project Name: Questlings
+
+Update: We have successfully transitioned from boilerplate setup to functional connectivity. Today, we integrated the Supabase client with environment-safe configuration and established Riverpod providers for managing real-time data streams of user profiles and questlings. Our primary focus is wiring the habit checklist on the Home Screen to the backend and drafting the SQL logic for the "Sick Status" automation. Initial UI components for the inventory grid are now being populated with live data from the database.
+
 Date & Time: May 04, 2026, 10:04 AM
 Project Name: Questlings
 
