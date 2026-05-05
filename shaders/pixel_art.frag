@@ -3,6 +3,7 @@
 uniform vec2 uSize;          // Size of the widget/canvas
 uniform sampler2D uTexture;  // The image to filter
 uniform vec2 uTextureSize;   // Original resolution (pixel art size)
+uniform float uSaturation;   // 1.0 = normal, 0.0 = grayscale
 
 out vec4 fragColor;
 
@@ -23,5 +24,13 @@ void main() {
     // Convert back to normalized 0.0 - 1.0 range
     vec2 finalUv = sharpUv / uTextureSize;
     
-    fragColor = texture(uTexture, finalUv);
+    vec4 color = texture(uTexture, finalUv);
+
+    // Apply grayscale if saturation < 1.0
+    if (uSaturation < 1.0) {
+        float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+        color.rgb = mix(vec3(gray), color.rgb, uSaturation);
+    }
+
+    fragColor = color;
 }

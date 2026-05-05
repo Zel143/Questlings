@@ -6,11 +6,13 @@ import '../providers/shader_providers.dart';
 class PixelFilter extends ConsumerWidget {
   final Widget child;
   final double pixelSize;
+  final double saturation;
 
   const PixelFilter({
     super.key,
     required this.child,
     this.pixelSize = 4.0,
+    this.saturation = 1.0,
   });
 
   @override
@@ -31,9 +33,11 @@ class PixelFilter extends ConsumerWidget {
             shader.setImageSampler(0, image);
 
             // uTextureSize
-            // We want the original resolution to be (size / pixelSize)
             shader.setFloat(2, size.width / pixelSize);
             shader.setFloat(3, size.height / pixelSize);
+
+            // uSaturation
+            shader.setFloat(4, saturation);
 
             final paint = Paint()..shader = shader;
             canvas.drawRect(Offset.zero & size, paint);
