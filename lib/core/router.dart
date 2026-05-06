@@ -7,7 +7,6 @@ import '../features/shop/shop_screen.dart';
 import '../features/auth/auth_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
-import 'theme.dart';
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
@@ -51,7 +50,24 @@ final router = GoRouter(
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
-        return ScaffoldWithNavBar(navigationShell: navigationShell);
+        return Scaffold(
+          body: navigationShell,
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: navigationShell.currentIndex,
+            onDestinationSelected: (int index) {
+              navigationShell.goBranch(
+                index,
+                initialLocation: index == navigationShell.currentIndex,
+              );
+            },
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+              NavigationDestination(icon: Icon(Icons.inventory_outlined), label: 'Inventory'),
+              NavigationDestination(icon: Icon(Icons.group_outlined), label: 'Party'),
+              NavigationDestination(icon: Icon(Icons.store_outlined), label: 'Shop'),
+            ],
+          ),
+        );
       },
       branches: [
         StatefulShellBranch(
@@ -90,135 +106,3 @@ final router = GoRouter(
     ),
   ],
 );
-
-class _NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
-}
-
-const _navItems = [
-  _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
-  _NavItem(icon: Icons.backpack_outlined, activeIcon: Icons.backpack, label: 'Inventory'),
-  _NavItem(icon: Icons.people_outline, activeIcon: Icons.people, label: 'Party'),
-  _NavItem(icon: Icons.store_outlined, activeIcon: Icons.store, label: 'Shop'),
-];
-
-class ScaffoldWithNavBar extends StatelessWidget {
-  const ScaffoldWithNavBar({
-    required this.navigationShell,
-    Key? key,
-  }) : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
-
-  final StatefulNavigationShell navigationShell;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: QuestlingsTheme.backgroundGradient,
-        ),
-        child: navigationShell,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: QuestlingsTheme.surfaceDark,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_navItems.length, (index) {
-                final isSelected = navigationShell.currentIndex == index;
-                final item = _navItems[index];
-                return _NavBarItem(
-                  icon: isSelected ? item.activeIcon : item.icon,
-                  label: item.label,
-                  isSelected: isSelected,
-                  onTap: () => _onTap(context, index),
-                );
-              }),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _onTap(BuildContext context, int index) {
-    navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
-    );
-  }
-}
-
-class _NavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavBarItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? QuestlingsTheme.primaryLight.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected
-                  ? QuestlingsTheme.primaryLight
-                  : QuestlingsTheme.textSecondary,
-              size: 24,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected
-                    ? QuestlingsTheme.primaryLight
-                    : QuestlingsTheme.textSecondary,
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
