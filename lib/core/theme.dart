@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ── Rarity System ─────────────────────────────────────────────────────────
 enum Rarity { common, uncommon, rare, epic, legendary }
@@ -34,191 +35,232 @@ String rarityLabel(Rarity rarity) {
 }
 
 class QuestlingsTheme {
-  // ── Colors ──────────────────────────────────────────────────────────────
-  static const Color primaryLight = Color(0xFF7C4DFF);
-  static const Color primaryDark = Color(0xFFB388FF);
-  static const Color secondary = Color(0xFFFFD54F);
-  static const Color accent = Color(0xFF00E5FF);
-  static const Color surfaceDark = Color(0xFF1A1A2E);
-  static const Color surfaceCard = Color(0xFF16213E);
-  static const Color surfaceOverlay = Color(0xFF0F3460);
-  static const Color backgroundDark = Color(0xFF0D0D1A);
-  static const Color textPrimary = Color(0xFFF5F5F5);
-  static const Color textSecondary = Color(0xFFB0B0C3);
-  static const Color success = Color(0xFF4CAF50);
-  static const Color danger = Color(0xFFFF5252);
-  static const Color warning = Color(0xFFFFB74D);
-  static const Color rarityCommon = Color(0xFF9E9E9E);
-  static const Color rarityUncommon = Color(0xFF4CAF50);
-  static const Color rarityRare = Color(0xFF42A5F5);
-  static const Color rarityEpic = Color(0xFFAB47BC);
-  static const Color rarityLegendary = Color(0xFFFFB74D);
+  // ── Colors from DESIGN.md ───────────────────────────────────────────────
+  static const Color surface = Color(0xFFFAFAF2);
+  static const Color surfaceDim = Color(0xFFDADAD3);
+  static const Color onSurface = Color(0xFF1A1C18);
+  static const Color outline = Color(0xFF717A6D);
+  
+  static const Color primary = Color(0xFF2F6B2D);
+  static const Color onPrimary = Color(0xFFFFFFFF);
+  static const Color primaryContainer = Color(0xFF98D98E);
+  static const Color onPrimaryContainer = Color(0xFF246024);
+  
+  static const Color secondary = Color(0xFF13648F);
+  static const Color onSecondary = Color(0xFFFFFFFF);
+  
+  static const Color error = Color(0xFFBA1A1A);
+  static const Color onError = Color(0xFFFFFFFF);
+  
+  static const Color background = Color(0xFFFAFAF2);
+  static const Color onBackground = Color(0xFF1A1C18);
+
+  static const Color border = Color(0xFF282828); // Rigorous Dark Gray border
+
+  // ── Old properties mapped to new ones for backwards compatibility ───────
+  static const Color primaryLight = primary;
+  static const Color primaryDark = onPrimaryContainer;
+  static const Color accent = secondary;
+  static const Color surfaceDark = surface;
+  static const Color surfaceCard = surface;
+  static const Color surfaceOverlay = surfaceDim;
+  static const Color backgroundDark = background;
+  static const Color textPrimary = onSurface;
+  static const Color textSecondary = outline;
+  static const Color success = primary;
+  static const Color danger = error;
+  static const Color warning = secondary;
+  
+  static const Color rarityCommon = outline;
+  static const Color rarityUncommon = primary;
+  static const Color rarityRare = secondary;
+  static const Color rarityEpic = Color(0xFF675030);
+  static const Color rarityLegendary = Color(0xFFE3C49B);
 
   // ── Gradients ───────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
-    colors: [Color(0xFF7C4DFF), Color(0xFF448AFF)],
+    colors: [primary, primaryContainer],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient backgroundGradient = LinearGradient(
-    colors: [Color(0xFF0D0D1A), Color(0xFF1A1A2E), Color(0xFF16213E)],
+    colors: [background, background], // Solid color for retro
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
 
   static const LinearGradient cardGradient = LinearGradient(
-    colors: [Color(0xFF16213E), Color(0xFF1A1A2E)],
+    colors: [surface, surface],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   static const LinearGradient goldGradient = LinearGradient(
-    colors: [Color(0xFFFFD54F), Color(0xFFFFB300)],
+    colors: [rarityLegendary, Color(0xFFD2B48C)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   // ── Shadows ─────────────────────────────────────────────────────────────
   static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.3),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+        const BoxShadow(
+          color: border,
+          blurRadius: 0,
+          offset: Offset(2, 2),
         ),
       ];
 
   static List<BoxShadow> get glowShadow => [
         BoxShadow(
-          color: primaryLight.withValues(alpha: 0.3),
-          blurRadius: 20,
-          offset: const Offset(0, 0),
+          color: primary.withValues(alpha: 0.3),
+          blurRadius: 0, // No blur for retro
+          offset: const Offset(2, 2),
         ),
       ];
 
   // ── Theme Data ──────────────────────────────────────────────────────────
-  static ThemeData get darkTheme {
+  static ThemeData get retroTheme {
     return ThemeData(
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       useMaterial3: true,
-      scaffoldBackgroundColor: backgroundDark,
-      colorScheme: const ColorScheme.dark(
-        primary: primaryLight,
+      scaffoldBackgroundColor: background,
+      colorScheme: const ColorScheme.light(
+        primary: primary,
+        onPrimary: onPrimary,
+        primaryContainer: primaryContainer,
+        onPrimaryContainer: onPrimaryContainer,
         secondary: secondary,
-        surface: surfaceDark,
-        error: danger,
+        onSecondary: onSecondary,
+        surface: surface,
+        onSurface: onSurface,
+        error: error,
+        onError: onError,
+        outline: outline,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          color: textPrimary,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
-        ),
-        iconTheme: IconThemeData(color: textPrimary),
-      ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          color: textPrimary,
+      textTheme: TextTheme(
+        displayLarge: GoogleFonts.splineSans(
+          color: onSurface,
           fontSize: 32,
           fontWeight: FontWeight.bold,
-          letterSpacing: 1.5,
+          letterSpacing: -0.02,
         ),
-        displayMedium: TextStyle(
-          color: textPrimary,
+        displayMedium: GoogleFonts.splineSans(
+          color: onSurface,
           fontSize: 28,
           fontWeight: FontWeight.bold,
-          letterSpacing: 1.2,
         ),
-        headlineMedium: TextStyle(
-          color: textPrimary,
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
+        headlineLarge: GoogleFonts.splineSans(
+          color: onSurface,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          height: 32 / 24,
+          letterSpacing: -0.02,
         ),
-        titleLarge: TextStyle(
-          color: textPrimary,
+        headlineMedium: GoogleFonts.splineSans(
+          color: onSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          height: 28 / 20,
+        ),
+        titleLarge: GoogleFonts.lexend(
+          color: onSurface,
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.8,
         ),
-        titleMedium: TextStyle(
-          color: textSecondary,
+        bodyLarge: GoogleFonts.lexend(
+          color: onSurface,
           fontSize: 16,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
+          height: 24 / 16,
         ),
-        bodyLarge: TextStyle(
-          color: textPrimary,
-          fontSize: 16,
-        ),
-        bodyMedium: TextStyle(
-          color: textSecondary,
+        bodyMedium: GoogleFonts.lexend(
+          color: onSurface,
           fontSize: 14,
+          fontWeight: FontWeight.w400,
+          height: 20 / 14,
         ),
-        labelLarge: TextStyle(
-          color: textPrimary,
-          fontSize: 14,
+        labelLarge: GoogleFonts.lexend(
+          color: onSurface,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
+          height: 16 / 12,
         ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: surface,
+        elevation: 0,
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.splineSans(
+          color: onSurface,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        iconTheme: const IconThemeData(color: onSurface),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryLight,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+          backgroundColor: primary,
+          foregroundColor: onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.zero,
+            side: BorderSide(color: border, width: 2),
           ),
-          elevation: 4,
-          shadowColor: primaryLight.withValues(alpha: 0.4),
+          elevation: 0,
+          textStyle: GoogleFonts.lexend(fontWeight: FontWeight.w600),
+        ).copyWith(
+          shadowColor: WidgetStateProperty.all(border),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaceCard,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        fillColor: const Color(0xFFE8E8D0), 
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: border, width: 2),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: surfaceOverlay, width: 1),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: border, width: 2),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryLight, width: 2),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.zero,
+          borderSide: BorderSide(color: primary, width: 2),
         ),
-        labelStyle: const TextStyle(color: textSecondary),
-        prefixIconColor: textSecondary,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        labelStyle: GoogleFonts.lexend(color: outline),
+        prefixIconColor: outline,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: surfaceDark,
-        selectedItemColor: primaryLight,
-        unselectedItemColor: textSecondary,
+        backgroundColor: surface,
+        selectedItemColor: primary,
+        unselectedItemColor: outline,
         type: BottomNavigationBarType.fixed,
-        elevation: 20,
-        selectedLabelStyle: const TextStyle(
+        elevation: 0,
+        selectedLabelStyle: GoogleFonts.lexend(
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),
-        unselectedLabelStyle: const TextStyle(
+        unselectedLabelStyle: GoogleFonts.lexend(
           fontWeight: FontWeight.w400,
           fontSize: 11,
         ),
       ),
-      cardTheme: CardThemeData(
-        color: surfaceCard,
-        elevation: 4,
+      cardTheme: const CardThemeData(
+        color: surface,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
+          side: BorderSide(color: border, width: 2),
         ),
+        margin: EdgeInsets.all(8),
       ),
-      dividerTheme: DividerThemeData(
-        color: surfaceOverlay.withValues(alpha: 0.5),
-        thickness: 1,
+      dividerTheme: const DividerThemeData(
+        color: border,
+        thickness: 2,
+        space: 2,
       ),
     );
   }
