@@ -60,18 +60,18 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
           throw 'GOOGLE_WEB_CLIENT_ID not found in .env file.';
         }
 
-        await GoogleSignIn.instance.initialize(
-          serverClientId: webClientId,
-        );
+        final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+        final googleUser = await googleSignIn.signIn();
 
-        final googleUser = await GoogleSignIn.instance.authenticate();
+        if (googleUser == null) {
+          throw 'Google Sign In was canceled.';
+        }
+
         final googleAuth = await googleUser.authentication;
         final idToken = googleAuth.idToken;
+        final accessToken = googleAuth.accessToken;
 
         if (idToken == null) throw 'No ID Token found.';
-
-        final clientAuth = await googleUser.authorizationClient.authorizationForScopes([]);
-        final accessToken = clientAuth?.accessToken;
 
         await Supabase.instance.client.auth.signInWithIdToken(
           provider: OAuthProvider.google,
