@@ -1,12 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Map<String, dynamic>? _userProfile;
+  Map<String, dynamic>? _questling;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    try {
+      final profileResponse = await Supabase.instance.client
+          .from('users')
+          .select('''
+            *,
+            user_questlings:equipped_questling_id (
+              *,
+              questling_dictionary:questling_id (
+                name,
+                elemental_type
+              )
+            )
+          ''')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profileResponse == null) {
+        if (mounted) context.go('/setup');
+        return;
+      }
+
+      setState(() {
+        _userProfile = profileResponse;
+        if (profileResponse['user_questlings'] != null) {
+          _questling = profileResponse['user_questlings'];
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_userProfile == null) {
+      return const Center(child: Text('Error loading profile.'));
+    }
+
+    final username = _userProfile!['username'] ?? 'Unknown';
+    final userLevel = _userProfile!['level'] ?? 1;
+    final questlingData = _questling?['questling_dictionary'];
+    final questlingNickname = _questling?['nickname'] ?? questlingData?['name'] ?? 'Unknown Egg';
+    final questlingType = questlingData?['elemental_type'] ?? 'Unknown Type';
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -28,25 +100,31 @@ class HomeScreen extends StatelessWidget {
                           color: QuestlingsTheme.background,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                         ),
-                        // Image placeholder
+                        child: Icon(
+                          Icons.pets,
+                          size: 60,
+                          color: questlingType == 'Fire' 
+                            ? Colors.red 
+                            : (questlingType == 'Water' ? Colors.blue : Colors.green),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         color: QuestlingsTheme.brownAction,
-                        child: const Text(
-                          'LVL 5',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        child: Text(
+                          'LVL $userLevel',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Bulba', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-                    Text('Grass Type', style: TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.bold)),
+                    Text(questlingNickname, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                    Text('$questlingType Type', style: const TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 const Divider(color: QuestlingsTheme.shadow, thickness: 2),

@@ -5,6 +5,7 @@ import '../features/inventory/inventory_screen.dart';
 import '../features/party/party_screen.dart';
 import '../features/shop/shop_screen.dart';
 import '../features/auth/auth_screen.dart';
+import '../features/auth/setup_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'theme.dart';
@@ -134,6 +135,10 @@ final router = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const AuthScreen(),
+    ),
+    GoRoute(
+      path: '/setup',
+      builder: (context, state) => const SetupScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
