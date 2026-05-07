@@ -43,11 +43,13 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
 
   Future<void> _loadParty() async {
     if (_currentUserId == null) return;
+    // Reset state so UI shows loading on re-fetch
+    if (mounted) setState(() { _isLoadingParty = true; _party = null; _partyMembers = []; });
     try {
       final userData = await Supabase.instance.client
           .from('users').select('party_id').eq('id', _currentUserId!).maybeSingle();
       if (userData == null || userData['party_id'] == null) {
-        setState(() => _isLoadingParty = false);
+        if (mounted) setState(() => _isLoadingParty = false);
         return;
       }
       final partyId = userData['party_id'];
@@ -122,7 +124,9 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
           const SnackBar(content: Text('Friend added to your party! 🎉')),
         );
         ref.invalidate(friendsListProvider);
-        _loadParty();
+        await _loadParty();
+        // Switch to Party tab so the user sees the updated roster
+        _tabController.animateTo(0);
       }
     } catch (e) {
       if (mounted) {
@@ -437,7 +441,9 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
         ref.invalidate(friendsListProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend accepted! You are now in the same party. 🎉')));
-        _loadParty();
+        await _loadParty();
+        // Switch to Party tab so the user sees the new party
+        _tabController.animateTo(0);
       }
     } catch (e) {
       debugPrint('[Accept] Error: $e');
