@@ -11,15 +11,30 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   Map<String, dynamic>? _userProfile;
   Map<String, dynamic>? _questling;
   bool _isLoading = true;
+  late AnimationController _idleController;
+  late Animation<double> _idleAnimation;
 
   @override
   void initState() {
     super.initState();
+    _idleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
+      CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
+    );
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _idleController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -38,7 +53,8 @@ class _HomeScreenState extends State<HomeScreen> {
               *,
               questling_dictionary:questling_id (
                 name,
-                elemental_type
+                elemental_type,
+                sprite_path
               )
             )
           ''')
@@ -63,6 +79,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Returns the local asset path for the equipped questling's sprite.
+  /// Falls back to a mapping by elemental_type if sprite_path is null in the DB.
+  String _getSpritePath() {
+    final questlingData = _questling?['questling_dictionary'];
+    final spritePath = questlingData?['sprite_path'];
+    if (spritePath != null && spritePath.toString().isNotEmpty) {
+      return spritePath;
+    }
+    // Fallback mapping by elemental_type
+    final type = questlingData?['elemental_type'] ?? '';
+    switch (type) {
+      case 'Sports':
+        return 'assets/sprites/Sports-ling/Starter1.jpg';
+      case 'Tech':
+        return 'assets/sprites/Tech-ling/Starter2.jpg';
+      case 'Art':
+        return 'assets/sprites/Art-ling/Starter3.png';
+      case 'School':
+        return 'assets/sprites/Skool-ling/Starter4.jpg';
+      default:
+        return 'assets/sprites/Sports-ling/Starter1.jpg';
+    }
+  }
+
+  /// Returns a color associated with each questling type for visual theming.
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'Sports':
+        return const Color(0xFFD32F2F);
+      case 'Tech':
+        return const Color(0xFF7B1FA2);
+      case 'Art':
+        return const Color(0xFF2E7D32);
+      case 'School':
+        return const Color(0xFF795548);
+      default:
+        return QuestlingsTheme.shadow;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -77,7 +133,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final userLevel = _userProfile!['level'] ?? 1;
     final questlingData = _questling?['questling_dictionary'];
     final questlingNickname = _questling?['nickname'] ?? questlingData?['name'] ?? 'Unknown Egg';
-    final questlingType = questlingData?['elemental_type'] ?? 'Unknown Type';
+    final questlingType = questlingData?['elemental_type'] ?? 'Unknown';
+    final spritePath = _getSpritePath();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -94,18 +151,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     alignment: Alignment.bottomRight,
                     children: [
                       Container(
-                        width: 120,
-                        height: 120,
+                        width: 140,
+                        height: 140,
                         decoration: BoxDecoration(
                           color: QuestlingsTheme.background,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                         ),
-                        child: Icon(
-                          Icons.pets,
-                          size: 60,
-                          color: questlingType == 'Fire' 
-                            ? Colors.red 
-                            : (questlingType == 'Water' ? Colors.blue : Colors.green),
+                        child: AnimatedBuilder(
+                          animation: _idleAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _idleAnimation.value),
+                              child: child,
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Image.asset(
+                              spritePath,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.none, // Keep pixel art crisp
+                            ),
+                          ),
                         ),
                       ),
                       Container(
@@ -124,7 +191,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(questlingNickname, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-                    Text('$questlingType Type', style: const TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _getTypeColor(questlingType).withValues(alpha: 0.15),
+                        border: Border.all(color: _getTypeColor(questlingType), width: 1.5),
+                      ),
+                      child: Text(
+                        '$questlingType Type',
+                        style: TextStyle(
+                          color: _getTypeColor(questlingType),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(color: QuestlingsTheme.shadow, thickness: 2),
