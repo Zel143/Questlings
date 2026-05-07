@@ -7,6 +7,93 @@ import '../features/shop/shop_screen.dart';
 import '../features/auth/auth_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
+import 'theme.dart';
+
+class MainLayout extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
+
+  const MainLayout({super.key, required this.navigationShell});
+
+  Widget _buildNavItem(IconData icon, String label, int index) {
+    final isSelected = index == navigationShell.currentIndex;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isSelected ? QuestlingsTheme.lightGreen : Colors.transparent,
+            border: isSelected ? Border.all(color: QuestlingsTheme.shadow, width: 2) : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: QuestlingsTheme.shadow),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: QuestlingsTheme.shadow,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('QUESTLINGS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 4.0)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {},
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(4.0),
+          child: Container(
+            color: QuestlingsTheme.shadow,
+            height: 4.0,
+          ),
+        ),
+      ),
+      body: navigationShell,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: QuestlingsTheme.background,
+          border: Border(
+            top: BorderSide(color: QuestlingsTheme.shadow, width: 4),
+          ),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 70,
+            child: Row(
+              children: [
+                _buildNavItem(Icons.home_outlined, 'Home', 0),
+                _buildNavItem(Icons.inventory_2_outlined, 'Inventory', 1),
+                _buildNavItem(Icons.group_outlined, 'Party', 2),
+                _buildNavItem(Icons.storefront_outlined, 'Shop', 3),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
@@ -50,24 +137,7 @@ final router = GoRouter(
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
-        return Scaffold(
-          body: navigationShell,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: navigationShell.currentIndex,
-            onDestinationSelected: (int index) {
-              navigationShell.goBranch(
-                index,
-                initialLocation: index == navigationShell.currentIndex,
-              );
-            },
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-              NavigationDestination(icon: Icon(Icons.inventory_outlined), label: 'Inventory'),
-              NavigationDestination(icon: Icon(Icons.group_outlined), label: 'Party'),
-              NavigationDestination(icon: Icon(Icons.store_outlined), label: 'Shop'),
-            ],
-          ),
-        );
+        return MainLayout(navigationShell: navigationShell);
       },
       branches: [
         StatefulShellBranch(

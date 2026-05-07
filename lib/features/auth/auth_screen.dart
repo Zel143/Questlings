@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../../core/theme.dart';
+import '../../core/widgets/pixel_button.dart';
+import '../../core/widgets/pixel_container.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -49,7 +52,6 @@ class _AuthScreenState extends State<AuthScreen> {
         final googleUser = await GoogleSignIn.instance.authenticate();
         final googleAuth = googleUser.authentication;
         final idToken = googleAuth.idToken;
-        final accessToken = googleAuth.accessToken;
 
         if (idToken == null) throw 'No ID Token found.';
 
@@ -130,81 +132,97 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.egg, size: 80, color: Colors.deepPurple),
+              const Icon(Icons.egg, size: 80, color: QuestlingsTheme.primaryAction),
               const SizedBox(height: 24),
               const Text(
-                'Welcome to Questlings',
+                'QUESTLINGS',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: 4.0),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'ENTER THE REALM',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2.0),
               ),
               const SizedBox(height: 48),
 
               if (!_otpSent) ...[
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.login),
-                  label: const Text('Sign in with Google'),
+                PixelButton(
+                  icon: const Icon(Icons.login, color: Colors.white),
+                  text: 'Sign in with Google',
                   onPressed: _isLoading ? null : _signInWithGoogle,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 52),
-                  ),
+                  backgroundColor: QuestlingsTheme.primaryAction,
+                  textColor: Colors.white,
                 ),
                 const SizedBox(height: 24),
                 const Row(
                   children: [
-                    Expanded(child: Divider()),
+                    Expanded(child: Divider(color: QuestlingsTheme.shadow, thickness: 2)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('OR'),
+                      child: Text('OR', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                    Expanded(child: Divider()),
+                    Expanded(child: Divider(color: QuestlingsTheme.shadow, thickness: 2)),
                   ],
                 ),
                 const SizedBox(height: 24),
-                TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                    boxShadow: const [BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(4, 4))],
                   ),
-                  keyboardType: TextInputType.emailAddress,
+                  child: TextField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                      labelStyle: TextStyle(fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      prefixIcon: Icon(Icons.email, color: QuestlingsTheme.shadow),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
+                const SizedBox(height: 24),
+                PixelButton(
                   onPressed: _isLoading ? null : _sendOtp,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 52),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Send Magic Link / OTP'),
+                  text: _isLoading ? 'SENDING...' : 'Send Magic Link',
                 ),
               ] else ...[
                 Text(
                   'Enter the code sent to $_userEmail',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: _otpController,
-                  decoration: const InputDecoration(
-                    labelText: 'OTP Code',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.password),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                    boxShadow: const [BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(4, 4))],
                   ),
-                  keyboardType: TextInputType.number,
+                  child: TextField(
+                    controller: _otpController,
+                    decoration: const InputDecoration(
+                      labelText: 'OTP Code',
+                      labelStyle: TextStyle(fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      prefixIcon: Icon(Icons.password, color: QuestlingsTheme.shadow),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
+                const SizedBox(height: 24),
+                PixelButton(
                   onPressed: _isLoading ? null : _verifyOtp,
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 52),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Verify Login'),
+                  text: _isLoading ? 'VERIFYING...' : 'Verify Login',
+                  backgroundColor: QuestlingsTheme.primaryAction,
+                  textColor: Colors.white,
                 ),
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
                     setState(() {
@@ -212,7 +230,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       _otpController.clear();
                     });
                   },
-                  child: const Text('Use a different email'),
+                  child: const Text('Use a different email', style: TextStyle(color: QuestlingsTheme.shadow, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
                 ),
               ],
             ],
