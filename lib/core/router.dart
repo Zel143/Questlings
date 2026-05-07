@@ -5,11 +5,13 @@ import '../features/inventory/inventory_screen.dart';
 import '../features/party/party_screen.dart';
 import '../features/shop/shop_screen.dart';
 import '../features/auth/auth_screen.dart';
-import '../features/auth/setup_screen.dart';
+import '../features/auth/username_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'theme.dart';
 
+<<<<<<< Updated upstream
+=======
 class MainLayout extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -96,11 +98,23 @@ class MainLayout extends StatelessWidget {
   }
 }
 
+/// Tracks whether the current user still needs to set up their profile.
+/// Set to false once the user record exists in public.users.
+bool needsUsernameSetup = true;
+
+>>>>>>> Stashed changes
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
     _subscription = stream.asBroadcastStream().listen(
-      (dynamic _) => notifyListeners(),
+      (dynamic _) {
+        // Reset the flag when auth state changes (e.g. sign out)
+        final session = Supabase.instance.client.auth.currentSession;
+        if (session == null) {
+          needsUsernameSetup = true;
+        }
+        notifyListeners();
+      },
     );
   }
 
@@ -122,13 +136,24 @@ final router = GoRouter(
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
     final isLoggingIn = state.matchedLocation == '/login';
+    final isSettingUsername = state.matchedLocation == '/username';
 
-    if (session == null && !isLoggingIn) {
+    // Not logged in -> login screen
+    if (session == null && !isLoggingIn && !isSettingUsername) {
       return '/login';
     }
+
+    // Logged in but on auth screen -> redirect away
     if (session != null && isLoggingIn) {
-      return '/';
+      // Check immediately whether to go to username or home
+      return needsUsernameSetup ? '/username' : '/';
     }
+
+    // Logged in but hasn't set username yet -> redirect to username screen
+    if (session != null && needsUsernameSetup && !isSettingUsername) {
+      return '/username';
+    }
+
     return null;
   },
   routes: [
@@ -137,8 +162,8 @@ final router = GoRouter(
       builder: (context, state) => const AuthScreen(),
     ),
     GoRoute(
-      path: '/setup',
-      builder: (context, state) => const SetupScreen(),
+      path: '/username',
+      builder: (context, state) => const UsernameScreen(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
