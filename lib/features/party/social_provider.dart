@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 // Lazy getter — always called after Supabase.initialize() completes
 SupabaseClient get _supabase => Supabase.instance.client;
 
@@ -23,18 +21,6 @@ class FriendRequest {
     required this.createdAt,
     this.senderUsername,
   });
-
-  factory FriendRequest.fromJson(Map<String, dynamic> json) {
-    // sender is joined as a nested object: { username: '...' }
-    final senderMap = json['sender'] as Map<String, dynamic>?;
-    return FriendRequest(
-      id: json['id'] as String,
-      senderId: json['sender_id'] as String,
-      receiverId: json['receiver_id'] as String,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      senderUsername: senderMap?['username'] as String?,
-    );
-  }
 }
 
 // ─────────────────────────────────────────────
@@ -45,9 +31,8 @@ final friendRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
   final myId = _supabase.auth.currentUser?.id;
   if (myId == null) return Stream.value([]);
 
-  // Use .stream() to get real-time updates.
-  // The .eq() filter is applied client-side after Supabase Realtime delivers
-  // the event, and RLS ensures only rows the user has access to are broadcast.
+  // .stream() delivers real-time updates whenever friend_requests changes.
+  // RLS ensures only the receiver sees their own rows.
   return _supabase
       .from('friend_requests')
       .stream(primaryKey: ['id'])
@@ -55,10 +40,8 @@ final friendRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
       .asyncMap((data) async {
         if (data.isEmpty) return <FriendRequest>[];
 
-        // Collect all unique sender IDs in one pass
+        // Single batch query for all sender usernames — no N+1
         final senderIds = data.map((r) => r['sender_id'] as String).toSet().toList();
-
-        // Single batch query for all sender usernames — eliminates N+1
         final usersData = await _supabase
             .from('users')
             .select('id, username')
@@ -85,8 +68,8 @@ final friendRequestsProvider = StreamProvider<List<FriendRequest>>((ref) {
 // ─────────────────────────────────────────────
 
 class SocialService {
-  /// Sends a friend request. Throws [PostgrestException] on DB errors
-  /// (e.g., duplicate request — caught gracefully in the UI).
+  /// Sends a friend request.
+  /// Throws [PostgrestException] with code '23505' on duplicate.
   static Future<void> sendFriendRequest(String targetUserId) async {
     final myId = _supabase.auth.currentUser?.id;
     if (myId == null) throw Exception('Not authenticated');
@@ -97,46 +80,24 @@ class SocialService {
     });
   }
 
-  /// Accepts a friend request. Both the friendship insert and request delete
-  /// are attempted. If the friendship already exists (duplicate accept), it
-  /// is silently ignored. The request is always cleaned up.
+  /// Accepts a friend request via a SECURITY DEFINER RPC.
+  ///
+  /// The server-side function atomically:
+  ///  1. Creates the friendship record
+  ///  2. Assigns both users to the same party (creating one if needed)
+  ///  3. Deletes the friend_request row
+  ///
+  /// This avoids the RLS restriction that prevents the receiver
+  /// from updating the sender's `party_id` directly.
   static Future<void> acceptFriendRequest(FriendRequest request) async {
-    final myId = _supabase.auth.currentUser?.id;
-    if (myId == null) throw Exception('Not authenticated');
-
-    // Normalize order to prevent (A,B) vs (B,A) duplicates in friendships table
-    final id1 = myId.compareTo(request.senderId) < 0 ? myId : request.senderId;
-    final id2 = myId.compareTo(request.senderId) < 0 ? request.senderId : myId;
-
-    try {
-      await _supabase.from('friendships').insert({
-        'user_id_1': id1,
-        'user_id_2': id2,
-      });
-    } on PostgrestException catch (e) {
-      // Code 23505 = unique_violation — friendship already exists, safe to ignore
-      if (e.code != '23505') {
-        debugPrint('Unexpected error inserting friendship: ${e.message}');
-        rethrow;
-      }
-    }
-
-    // Always clean up the request, even if friendship already existed
-    try {
-      await _supabase.from('friend_requests').delete().eq('id', request.id);
-    } on PostgrestException catch (e) {
-      debugPrint('Error deleting friend request: ${e.message}');
-      // Don't rethrow — the friendship was created successfully
-    }
+    await _supabase.rpc('accept_friend_request', params: {
+      'p_request_id': request.id,
+      'p_sender_id': request.senderId,
+    });
   }
 
-  /// Declines (deletes) a pending friend request.
+  /// Declines a friend request — simply deletes it.
   static Future<void> declineFriendRequest(String requestId) async {
-    try {
-      await _supabase.from('friend_requests').delete().eq('id', requestId);
-    } on PostgrestException catch (e) {
-      debugPrint('Error declining friend request: ${e.message}');
-      rethrow;
-    }
+    await _supabase.from('friend_requests').delete().eq('id', requestId);
   }
 }

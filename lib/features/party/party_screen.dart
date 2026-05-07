@@ -25,6 +25,8 @@ class _PartyScreenState extends ConsumerState<PartyScreen> {
   final Set<String> _pendingRequestsSent = {};
   // Tracks which user ID is currently being sent (in-flight)
   String? _sendingRequestTo;
+  // Tracks request IDs that are currently being accepted/declined
+  final Set<String> _processingRequests = {};
 
   @override
   void initState() {
@@ -207,28 +209,87 @@ class _PartyScreenState extends ConsumerState<PartyScreen> {
                   const Text('Pending Requests', 
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: QuestlingsTheme.primaryAction)),
                   const SizedBox(height: 8),
-                  ...requests.map((req) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: PixelContainer(
-                      padding: 12,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text('${req.senderUsername ?? 'Someone'} wants to be your friend!',
-                                style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.check, color: Colors.green),
-                            onPressed: () => SocialService.acceptFriendRequest(req),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.red),
-                            onPressed: () => SocialService.declineFriendRequest(req.id),
-                          ),
-                        ],
+                  ...requests.map((req) {
+                    final isProcessing = _processingRequests.contains(req.id);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: PixelContainer(
+                        padding: 12,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${req.senderUsername ?? 'Someone'} wants to be your friend!',
+                                style: const TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            if (isProcessing)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 12),
+                                child: SizedBox(
+                                  width: 20, height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            else ...[  
+                              IconButton(
+                                icon: const Icon(Icons.check, color: Colors.green),
+                                tooltip: 'Accept',
+                                onPressed: () async {
+                                  setState(() => _processingRequests.add(req.id));
+                                  try {
+                                    await SocialService.acceptFriendRequest(req);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Friend accepted! You are now in the same party. 🎉'),
+                                        ),
+                                      );
+                                      // Reload party so new member appears immediately
+                                      _loadParty();
+                                    }
+                                  } catch (e) {
+                                    debugPrint('[Accept] Error: $e');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed to accept: $e')),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) setState(() => _processingRequests.remove(req.id));
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.red),
+                                tooltip: 'Decline',
+                                onPressed: () async {
+                                  setState(() => _processingRequests.add(req.id));
+                                  try {
+                                    await SocialService.declineFriendRequest(req.id);
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Friend request declined.')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    debugPrint('[Decline] Error: $e');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed to decline: $e')),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted) setState(() => _processingRequests.remove(req.id));
+                                  }
+                                },
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  )),
+                    );
+                  }),
                   const SizedBox(height: 24),
                 ],
               );
