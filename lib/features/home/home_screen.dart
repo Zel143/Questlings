@@ -23,94 +23,417 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _exp = 120;
   int _maxExp = 200;
 
-  final List<Map<String, dynamic>> _quests = [
-    {
-      'title': 'Hydration Potion',
-      'description': 'Drink 8 glasses of water today to restore vitality.',
-      'expReward': 15,
-      'progress': 3,
-      'maxProgress': 8,
-      'isDone': false,
-      'expColor': const Color(0xFF6EABDE),
-      'category': 'Sports',
-    },
-    {
-      'title': 'Morning Patrol',
-      'description': 'Complete a 20-minute walk outside.',
-      'expReward': 20,
-      'progress': 1,
-      'maxProgress': 1,
-      'isDone': true,
-      'expColor': null,
-      'category': 'Sports',
-    },
-    {
-      'title': 'Study Grimoire',
-      'description': 'Read 15 pages of any non-fiction book.',
-      'expReward': 25,
-      'progress': 0,
-      'maxProgress': 1,
-      'isDone': false,
-      'expColor': QuestlingsTheme.surface,
-      'category': 'School',
-    },
-    {
-      'title': 'Save Data',
-      'description': 'Write one sentence in your daily journal.',
-      'expReward': 10,
-      'progress': 0,
-      'maxProgress': 1,
-      'isDone': false,
-      'expColor': QuestlingsTheme.surface,
-      'category': 'Tech',
-    },
-    {
-      'title': 'Sketch Practice',
-      'description': 'Draw for 15 minutes.',
-      'expReward': 15,
-      'progress': 0,
-      'maxProgress': 1,
-      'isDone': false,
-      'expColor': QuestlingsTheme.surface,
-      'category': 'Art',
-    },
-  ];
+  List<Map<String, dynamic>> _activeQuests = [];
+  List<Map<String, dynamic>> _completedQuests = [];
 
-  void _completeQuestStep(int index, String? currentQuestlingType) {
-    if (_quests[index]['isDone']) return;
+  // ----------------------------------------------------------------------
+  // Database operations
+  // ----------------------------------------------------------------------
 
-    setState(() {
-      final quest = _quests[index];
-      
-      if (quest['maxProgress'] != null && quest['maxProgress'] > 1) {
-        quest['progress'] = (quest['progress'] as int) + 1;
-        if (quest['progress'] >= quest['maxProgress']) {
-          quest['isDone'] = true;
-          _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
-        }
-      } else {
-        quest['isDone'] = true;
-        quest['progress'] = 1;
-        _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
-      }
-    });
-  }
+  Future<void> _fetchQuests() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
 
-  void _awardRewards(int baseExp, String? category, String? currentQuestlingType) {
-    final isTypeMatch = category != null && category == currentQuestlingType;
-    final finalExp = isTypeMatch ? (baseExp * 1.1).round() : baseExp;
+    try {
+      // Fetch active quests
+      final activeResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', ascending: true);
 
-    _exp += finalExp;
-    
-    if (_exp >= _maxExp) {
-      _exp = _exp - _maxExp;
-      _maxExp = (_maxExp * 1.2).round();
-      _hp = _maxHp;
-    } else {
-      _hp += 2;
-      if (_hp > _maxHp) _hp = _maxHp;
+      // Fetch last 10 completed quests (most recent first)
+      final completedResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      setState(() {
+        _activeQuests = List<Map<String, dynamic>>.from(activeResponse);
+        _completedQuests = List<Map<String, dynamic>>.from(completedResponse);
+      });
+      debugPrint('✅ Quests loaded from DB: ${_activeQuests.length} active, ${_completedQuests.length} completed');
+    } catch (e) {
+      debugPrint('❌ Error loading quests from DB: $e');
     }
   }
+
+  Future<void> _addQuestToDB(Map<String, dynamic> questData) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final newQuest = {
+        'user_id': userId,
+        'title': questData['title'],
+        'description': questData['description'],
+        'exp_reward': questData['expReward'],
+        'progress': 0,
+        'max_progress': questData['maxProgress'],
+        'category': questData['category'],
+        'status': 'active',
+      };
+      final response = await Supabase.instance.client
+          .from('user_quests')
+          .insert(newQuest)
+          .select()
+          .single();
+      setState(() {
+        _activeQuests.add(response);
+      });
+      debugPrint('✅ Quest added to DB: ${response['title']}');
+    } catch (e) {
+      debugPrint('❌ Error adding quest to DB: $e');
+    }
+  }
+
+  Future<void> _updateQuestProgress(String questId, int newProgress, int maxProgress) async {
+    try {
+      await Supabase.instance.client
+          .from('user_quests')
+          .update({'progress': newProgress})
+          .eq('id', questId);
+      debugPrint('✅ Progress updated for quest $questId: $newProgress/$maxProgress');
+    } catch (e) {
+      debugPrint('❌ Error updating progress: $e');
+    }
+  }
+
+  Future<void> _completeQuestInDB(String questId, int finalExp, int questIndex, int maxProgress) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // Mark as completed in DB, setting progress to maxProgress (non-null)
+      await Supabase.instance.client
+          .from('user_quests')
+          .update({
+            'status': 'completed',
+            'completed_at': DateTime.now().toIso8601String(),
+            'progress': maxProgress, // ensure non-null
+          })
+          .eq('id', questId);
+
+      // Fetch latest 10 completed quests
+      final completedResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      setState(() {
+        // Remove from active list
+        if (questIndex < _activeQuests.length) {
+          _activeQuests.removeAt(questIndex);
+        }
+        // Update completed list
+        _completedQuests = List<Map<String, dynamic>>.from(completedResponse);
+      });
+      debugPrint('✅ Quest completed and archived');
+    } catch (e) {
+      debugPrint('❌ Error completing quest: $e');
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // Quest logic (adapted for DB)
+  // ----------------------------------------------------------------------
+
+  void _completeQuestStep(int index, String? currentQuestlingType) {
+    final quest = _activeQuests[index];
+    if (quest['status'] != 'active') return; // safety
+
+    final isTypeMatch = quest['category'] != null && quest['category'] == currentQuestlingType;
+    final baseExp = quest['exp_reward'] as int;
+    final finalExp = isTypeMatch ? (baseExp * 1.1).round() : baseExp;
+    final currentProgress = quest['progress'] as int;
+    final maxProgress = quest['max_progress'] as int;
+
+    if (maxProgress > 1) {
+      // Multi-step quest
+      final newProgress = currentProgress + 1;
+      setState(() {
+        quest['progress'] = newProgress;
+      });
+      _updateQuestProgress(quest['id'], newProgress, maxProgress);
+
+      if (newProgress >= maxProgress) {
+        // Quest finished – show dialog, completion will be handled after rewards
+        _showCompletionDialog(quest, finalExp, isTypeMatch, index);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Progress updated: $newProgress/$maxProgress'),
+            duration: const Duration(milliseconds: 800),
+            backgroundColor: QuestlingsTheme.primaryAction,
+          ),
+        );
+      }
+    } else {
+      // Single-step quest – complete immediately
+      _showCompletionDialog(quest, finalExp, isTypeMatch, index);
+    }
+  }
+
+  void _showCompletionDialog(Map<String, dynamic> quest, int exp, bool bonusActive, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: QuestlingsTheme.primaryAction),
+            const SizedBox(width: 8),
+            const Text('Quest Complete!', style: TextStyle(fontWeight: FontWeight.w900)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('"${quest['title']}" completed!'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 20, color: Color(0xFFFFD54F)),
+                const SizedBox(width: 8),
+                Text('+$exp EXP', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                if (bonusActive) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    color: const Color(0xFFFFF9C4),
+                    child: const Text('TYPE BONUS!', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              final maxProgress = quest['max_progress'] as int; // get from quest
+              _awardRewardsAndArchiveQuest(exp, index, quest['id'], maxProgress);
+            },
+            child: const Text('CLAIM REWARDS', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _awardRewardsAndArchiveQuest(int finalExp, int questIndex, String questId, int maxProgress) {
+    setState(() {
+      _exp += finalExp;
+      if (_exp >= _maxExp) {
+        _exp -= _maxExp;
+        _maxExp = (_maxExp * 1.2).round();
+        _hp = _maxHp;
+      } else {
+        _hp += 2;
+        if (_hp > _maxHp) _hp = _maxHp;
+      }
+    });
+    // Archive in DB with maxProgress
+    _completeQuestInDB(questId, finalExp, questIndex, maxProgress);
+  }
+
+  void _showAddQuestDialog() {
+    final titleController = TextEditingController();
+    final descController = TextEditingController();
+    int selectedExp = 10;
+    int progressSteps = 1;
+    String selectedCategory = 'Sports';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('New Quest', style: TextStyle(fontWeight: FontWeight.w900)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                  ),
+                  child: TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Quest Title',
+                      labelStyle: TextStyle(fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                  ),
+                  child: TextField(
+                    controller: descController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      labelStyle: TextStyle(fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                    maxLines: 2,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('EXP Reward: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Spacer(),
+                    _buildExpOption(10, 'Easy', selectedExp, (v) => setDialogState(() => selectedExp = v)),
+                    const SizedBox(width: 4),
+                    _buildExpOption(25, 'Medium', selectedExp, (v) => setDialogState(() => selectedExp = v)),
+                    const SizedBox(width: 4),
+                    _buildExpOption(50, 'Hard', selectedExp, (v) => setDialogState(() => selectedExp = v)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Progress Steps: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              if (progressSteps > 1) setDialogState(() => progressSteps--);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: QuestlingsTheme.shadow,
+                                border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                              ),
+                              child: const Icon(Icons.remove, color: Colors.white, size: 18),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '$progressSteps',
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () {
+                              if (progressSteps < 10) setDialogState(() => progressSteps++);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: QuestlingsTheme.primaryAction,
+                                border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                              ),
+                              child: const Icon(Icons.add, color: Colors.white, size: 18),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            progressSteps == 1 ? '(one tap)' : '(tap $progressSteps times)',
+                            style: const TextStyle(fontSize: 10, color: QuestlingsTheme.shadow),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Category: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Spacer(),
+                    DropdownButton<String>(
+                      value: selectedCategory,
+                      items: const [
+                        DropdownMenuItem(value: 'Sports', child: Text('Sports')),
+                        DropdownMenuItem(value: 'Tech', child: Text('Tech')),
+                        DropdownMenuItem(value: 'Art', child: Text('Art')),
+                        DropdownMenuItem(value: 'School', child: Text('School')),
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedCategory = v);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () {
+                final title = titleController.text.trim();
+                final desc = descController.text.trim();
+                if (title.isEmpty || desc.isEmpty) return;
+                // Add to DB
+                _addQuestToDB({
+                  'title': title,
+                  'description': desc,
+                  'expReward': selectedExp,
+                  'maxProgress': progressSteps,
+                  'category': selectedCategory,
+                });
+                Navigator.of(context).pop();
+              },
+              child: const Text('Add Quest', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpOption(int exp, String label, int current, void Function(int) onSelected) {
+    final isSelected = current == exp;
+    return GestureDetector(
+      onTap: () => onSelected(exp),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? QuestlingsTheme.lightGreen : Colors.white,
+          border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+        ),
+        child: Column(
+          children: [
+            Text('+$exp', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isSelected ? QuestlingsTheme.primaryAction : QuestlingsTheme.shadow)),
+            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ----------------------------------------------------------------------
+  // Lifecycle & profile loading
+  // ----------------------------------------------------------------------
 
   @override
   void initState() {
@@ -122,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
       CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
     );
-    _loadProfile();
+    _loadProfileAndQuests();
   }
 
   @override
@@ -131,7 +454,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfileAndQuests() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       if (mounted) context.go('/login');
@@ -165,23 +488,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (profileResponse['user_questlings'] != null) {
           _questling = profileResponse['user_questlings'];
         }
-        _isLoading = false;
       });
+
+      // Load quests from database
+      await _fetchQuests();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading profile: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Returns the local asset path for the equipped questling's sprite.
-  /// Falls back to a mapping by elemental_type if sprite_path is null in the DB.
   String _getSpritePath() {
     final questlingData = _questling?['questling_dictionary'];
     final spritePath = questlingData?['sprite_path'];
     if (spritePath != null && spritePath.toString().isNotEmpty) {
       return spritePath;
     }
-    // Fallback mapping by elemental_type
     final type = questlingData?['elemental_type'] ?? '';
     switch (type) {
       case 'Sports':
@@ -197,7 +525,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  /// Returns a color associated with each questling type for visual theming.
   Color _getTypeColor(String type) {
     switch (type) {
       case 'Sports':
@@ -213,6 +540,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  // ----------------------------------------------------------------------
+  // UI Building (unchanged except quest fields mapping)
+  // ----------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -223,7 +554,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       return const Center(child: Text('Error loading profile.'));
     }
 
-    final username = _userProfile!['username'] ?? 'Unknown';
     final userLevel = _userProfile!['level'] ?? 1;
     final questlingData = _questling?['questling_dictionary'];
     final questlingNickname = _questling?['nickname'] ?? questlingData?['name'] ?? 'Unknown Egg';
@@ -235,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Card
+          // Profile Card (unchanged)
           PixelContainer(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             child: Image.asset(
                               spritePath,
                               fit: BoxFit.contain,
-                              filterQuality: FilterQuality.none, // Keep pixel art crisp
+                              filterQuality: FilterQuality.none,
                             ),
                           ),
                         ),
@@ -311,30 +641,81 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
           const SizedBox(height: 24),
-          const Row(
+
+          // Active Quests
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.sports_martial_arts, color: QuestlingsTheme.primaryAction, size: 32),
-              SizedBox(width: 8),
-              Text('Active Quests', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+              const Row(
+                children: [
+                  Icon(Icons.sports_martial_arts, color: QuestlingsTheme.primaryAction, size: 32),
+                  SizedBox(width: 8),
+                  Text('Active Quests', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                ],
+              ),
+              GestureDetector(
+                onTap: _showAddQuestDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: QuestlingsTheme.primaryAction,
+                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, color: Colors.white, size: 18),
+                      SizedBox(width: 4),
+                      Text('Add Quest', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
-          ..._quests.asMap().entries.map((entry) {
+          ..._activeQuests.asMap().entries.map((entry) {
             final index = entry.key;
             final quest = entry.value;
             return _buildQuestItem(
               title: quest['title'],
               description: quest['description'],
-              expAmount: quest['expReward'],
+              expAmount: quest['exp_reward'],
               progress: quest['progress'],
-              maxProgress: quest['maxProgress'],
-              isDone: quest['isDone'],
-              expColor: quest['expColor'],
+              maxProgress: quest['max_progress'],
+              isDone: false, // active quests are never "done" in UI sense, but we use status
+              expColor: null, // not used
               category: quest['category'],
               currentQuestlingType: questlingType,
               onTap: () => _completeQuestStep(index, questlingType),
             );
           }),
+          if (_activeQuests.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32.0),
+              child: Center(
+                child: Text(
+                  'No active quests.\nTap + to add a quest!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: QuestlingsTheme.shadow),
+                ),
+              ),
+            ),
+
+          const SizedBox(height: 32),
+
+          // Completed Quests
+          if (_completedQuests.isNotEmpty) ...[
+            const Row(
+              children: [
+                Icon(Icons.history, color: QuestlingsTheme.shadow, size: 28),
+                SizedBox(width: 8),
+                Text('Recently Completed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._completedQuests.map((quest) => _buildCompletedQuestItem(quest)),
+          ],
         ],
       ),
     );
@@ -387,126 +768,159 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     VoidCallback? onTap,
   }) {
     final isTypeMatch = category != null && category == currentQuestlingType;
-    final displayExp = isTypeMatch && !isDone ? '+$expAmount EXP (+10%)' : (isDone ? 'DONE' : '+$expAmount EXP');
+    final displayExp = isTypeMatch ? '+$expAmount EXP (+10%)' : '+$expAmount EXP';
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: GestureDetector(
         onTap: onTap,
         child: PixelContainer(
-          backgroundColor: isDone ? QuestlingsTheme.lightGreen : Colors.white,
+          backgroundColor: Colors.white,
           padding: 12,
           child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              margin: const EdgeInsets.only(top: 2),
-              decoration: BoxDecoration(
-                color: isDone ? QuestlingsTheme.primaryAction : Colors.white,
-                border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                ),
+                child: null, // checkbox not checked until completed, but we don't show check for active
               ),
-              child: isDone
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : null,
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isTypeMatch) ...[
+                                const SizedBox(width: 8),
+                                const Icon(Icons.star, color: Color(0xFFE6C200), size: 18),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isTypeMatch ? const Color(0xFFFFF9C4) : QuestlingsTheme.surface,
+                            border: Border.all(
+                              color: isTypeMatch ? const Color(0xFFE6C200) : QuestlingsTheme.shadow,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            displayExp,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isTypeMatch ? const Color(0xFFB89B00) : QuestlingsTheme.shadow,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: QuestlingsTheme.shadow,
+                      ),
+                    ),
+                    if (progress != null && maxProgress != null && maxProgress > 1) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('PROGRESS', style: TextStyle(fontSize: 10, letterSpacing: 1)),
+                          Text('$progress/$maxProgress', style: const TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 10,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: QuestlingsTheme.shadow, width: 1.5),
+                        ),
+                        child: Row(
+                          children: List.generate(maxProgress, (index) {
+                            return Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: index < progress ? const Color(0xFF2B5B84) : Colors.white,
+                                  border: index < maxProgress - 1
+                                      ? const Border(right: BorderSide(color: QuestlingsTheme.shadow, width: 1.5))
+                                      : null,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedQuestItem(Map<String, dynamic> quest) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PixelContainer(
+        backgroundColor: QuestlingsTheme.lightGreen.withValues(alpha: 0.5),
+        padding: 12,
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: QuestlingsTheme.primaryAction, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  decoration: isDone ? TextDecoration.lineThrough : null,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (isTypeMatch) ...[
-                              const SizedBox(width: 8),
-                              const Icon(Icons.star, color: Color(0xFFE6C200), size: 18),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isTypeMatch && !isDone ? const Color(0xFFFFF9C4) : (expColor ?? QuestlingsTheme.surface),
-                          border: Border.all(
-                            color: isTypeMatch && !isDone ? const Color(0xFFE6C200) : QuestlingsTheme.shadow, 
-                            width: 1.5
-                          ),
-                        ),
-                        child: Text(
-                          displayExp,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: isTypeMatch && !isDone ? const Color(0xFFB89B00) : (isDone ? Colors.white : QuestlingsTheme.shadow),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
                   Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: QuestlingsTheme.shadow,
-                      decoration: isDone ? TextDecoration.lineThrough : null,
-                    ),
+                    quest['title'],
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  if (progress != null && maxProgress != null) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('PROGRESS', style: TextStyle(fontSize: 10, letterSpacing: 1)),
-                        Text('$progress/$maxProgress', style: const TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      height: 10,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: QuestlingsTheme.shadow, width: 1.5),
-                      ),
-                      child: Row(
-                        children: List.generate(maxProgress, (index) {
-                          return Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: index < progress ? const Color(0xFF2B5B84) : Colors.white,
-                                border: index < maxProgress - 1
-                                    ? const Border(right: BorderSide(color: QuestlingsTheme.shadow, width: 1.5))
-                                    : null,
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
+                  Text(
+                    quest['description'],
+                    style: TextStyle(fontSize: 12, color: QuestlingsTheme.shadow),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
+            ),
+            Text(
+              '+${quest['exp_reward']} EXP',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
       ),
-    ),
     );
   }
 }
