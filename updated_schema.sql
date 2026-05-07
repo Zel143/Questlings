@@ -142,6 +142,22 @@ CREATE TABLE public.user_questlings (
   CONSTRAINT user_questlings_questling_id_fkey FOREIGN KEY (questling_id) REFERENCES public.questling_dictionary(id),
   CONSTRAINT fk_habit_born_from FOREIGN KEY (habit_born_from) REFERENCES public.habits(id)
 );
+CREATE TABLE public.user_quests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL,
+  exp_reward integer NOT NULL CHECK (exp_reward > 0),
+  progress integer NOT NULL DEFAULT 0,
+  max_progress integer NOT NULL DEFAULT 1,
+  category text NOT NULL,
+  status text NOT NULL DEFAULT 'active'::text CHECK (status = ANY (ARRAY['active'::text, 'completed'::text])),
+  completed_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_quests_pkey PRIMARY KEY (id),
+  CONSTRAINT user_quests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
 CREATE TABLE public.users (
   id uuid NOT NULL,
   username character varying NOT NULL UNIQUE,
