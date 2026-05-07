@@ -8,10 +8,11 @@ import '../features/auth/auth_screen.dart';
 import '../features/auth/username_screen.dart';
 import '../features/auth/setup_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ConsumerWidget, WidgetRef;
 import 'dart:async';
 import 'theme.dart';
 
-class MainLayout extends StatelessWidget {
+class MainLayout extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
 
   const MainLayout({super.key, required this.navigationShell});
@@ -52,15 +53,40 @@ class MainLayout extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await Supabase.instance.client.auth.signOut();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('QUESTLINGS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 4.0)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
+            onPressed: () => _confirmSignOut(context),
           ),
         ],
         bottom: PreferredSize(
