@@ -3,8 +3,69 @@ import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 import '../../core/global_state.dart';
 
-class ShopScreen extends StatelessWidget {
+class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
+
+  @override
+  State<ShopScreen> createState() => _ShopScreenState();
+}
+
+class _ShopScreenState extends State<ShopScreen> {
+  String _selectedTab = 'ACCESSORIES';
+
+  final Map<String, List<Map<String, dynamic>>> _shopItems = {
+    'ACCESSORIES': [
+      {
+        'title': 'FLAME COLLAR',
+        'desc': 'Boosts fire-type stats during battle.',
+        'price': '300',
+        'buttonColor': QuestlingsTheme.brownAction,
+        'imageColor': const Color(0xFFF2E3B6),
+        'type': 'ACCESSORY',
+        'soldOut': false,
+      },
+    ],
+    'GEAR': [
+      {
+        'title': 'ADVENTURER BAG',
+        'desc': 'Expands inventory by 10 slots.',
+        'price': '1200',
+        'buttonColor': QuestlingsTheme.brownAction,
+        'imageColor': const Color(0xFF26323E),
+        'type': 'GEAR',
+        'soldOut': false,
+      },
+      {
+        'title': 'WOODEN SHIELD',
+        'desc': 'Provides basic defense.',
+        'price': '150',
+        'buttonColor': QuestlingsTheme.brownAction,
+        'imageColor': const Color(0xFF795548),
+        'type': 'GEAR',
+        'soldOut': false,
+      },
+    ],
+    'EVOLUTION': [
+      {
+        'title': 'AQUA STONE',
+        'desc': 'Triggers evolution for aquatic questlings.',
+        'price': '850',
+        'buttonColor': QuestlingsTheme.blueAction,
+        'imageColor': const Color(0xFF0D131B),
+        'type': 'EVOLUTION',
+        'soldOut': false,
+      },
+      {
+        'title': 'MYSTERY EGG',
+        'desc': 'Who knows what will hatch?',
+        'price': '???',
+        'buttonColor': QuestlingsTheme.surface,
+        'imageColor': QuestlingsTheme.surface,
+        'type': 'EVOLUTION',
+        'soldOut': true,
+      },
+    ],
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -46,83 +107,15 @@ class ShopScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Expanded(child: _buildTab('ACCESSORIES', true)),
+                  Expanded(child: _buildTab('ACCESSORIES', _selectedTab == 'ACCESSORIES', () => setState(() => _selectedTab = 'ACCESSORIES'))),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildTab('GEAR', false)),
+                  Expanded(child: _buildTab('GEAR', _selectedTab == 'GEAR', () => setState(() => _selectedTab = 'GEAR'))),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildTab('EVOLUTION', false)),
+                  Expanded(child: _buildTab('EVOLUTION', _selectedTab == 'EVOLUTION', () => setState(() => _selectedTab = 'EVOLUTION'))),
                 ],
               ),
               const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildShopItem(
-                      context: context,
-                      title: 'FLAME COLLAR',
-                      desc: 'Boosts fire-type stats during battle.',
-                      price: '300',
-                      buttonColor: QuestlingsTheme.brownAction,
-                      imageColor: const Color(0xFFF2E3B6),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildShopItem(
-                      context: context,
-                      title: 'AQUA STONE',
-                      desc: 'Triggers evolution for aquatic questlings.',
-                      price: '850',
-                      buttonColor: QuestlingsTheme.blueAction,
-                      imageColor: const Color(0xFF0D131B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _buildShopItem(
-                      context: context,
-                      title: 'ADVENTURER BAG',
-                      desc: 'Expands inventory by 10 slots.',
-                      price: '1200',
-                      buttonColor: QuestlingsTheme.brownAction,
-                      imageColor: const Color(0xFF26323E),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        _buildShopItem(
-                          context: context,
-                          title: 'MYSTERY EGG',
-                          desc: 'Who knows what will hatch?',
-                          price: '???',
-                          buttonColor: QuestlingsTheme.surface,
-                          imageColor: QuestlingsTheme.surface,
-                        ),
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.white.withOpacity(0.7),
-                            child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                color: Colors.grey,
-                                child: const Text('SOLD OUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              _buildItemsGrid(context),
               const SizedBox(height: 24),
               // Wandering Trader
               PixelContainer(
@@ -169,21 +162,89 @@ class ShopScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTab(String text, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: isSelected ? QuestlingsTheme.lightGreen : Colors.white,
-        border: Border.all(color: QuestlingsTheme.shadow, width: 2),
-        boxShadow: [
-          if (!isSelected)
-            const BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(2, 2)),
+  Widget _buildItemsGrid(BuildContext context) {
+    final items = _shopItems[_selectedTab] ?? [];
+    List<Widget> rows = [];
+    for (int i = 0; i < items.length; i += 2) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _buildItemWidget(context, items[i]),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: i + 1 < items.length ? _buildItemWidget(context, items[i + 1]) : const SizedBox(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (rows.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(24.0),
+        child: Text('No items in this category yet.', style: TextStyle(color: QuestlingsTheme.shadow, fontWeight: FontWeight.bold)),
+      ));
+    }
+    return Column(children: rows);
+  }
+
+  Widget _buildItemWidget(BuildContext context, Map<String, dynamic> item) {
+    final bool isSoldOut = item['soldOut'] == true;
+    Widget shopItem = _buildShopItem(
+      context: context,
+      title: item['title'],
+      desc: item['desc'],
+      price: item['price'],
+      buttonColor: item['buttonColor'],
+      imageColor: item['imageColor'],
+      type: item['type'],
+    );
+
+    if (isSoldOut) {
+      return Stack(
+        children: [
+          shopItem,
+          Positioned.fill(
+            child: Container(
+              color: Colors.white.withOpacity(0.7),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  color: Colors.grey,
+                  child: const Text('SOLD OUT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ),
         ],
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        text,
-        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+      );
+    }
+    return shopItem;
+  }
+
+  Widget _buildTab(String text, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? QuestlingsTheme.lightGreen : Colors.white,
+          border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+          boxShadow: [
+            if (!isSelected)
+              const BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(2, 2)),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+        ),
       ),
     );
   }
@@ -195,6 +256,7 @@ class ShopScreen extends StatelessWidget {
     required String price,
     required Color buttonColor,
     required Color imageColor,
+    required String type,
   }) {
     return PixelContainer(
       padding: 12,
@@ -233,7 +295,7 @@ class ShopScreen extends StatelessWidget {
                     return;
                   }
                   int cost = int.tryParse(price) ?? 0;
-                  bool success = GlobalState().buyItem(title, cost, desc, imageColor);
+                  bool success = GlobalState().buyItem(title, cost, desc, imageColor, type);
                   if (success) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully bought $title!')));
                   } else {
