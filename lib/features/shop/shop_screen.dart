@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/widgets/pixel_container.dart';
-import '../../core/widgets/pixel_button.dart';
 import '../../core/theme.dart';
 
 class ShopScreen extends StatelessWidget {
