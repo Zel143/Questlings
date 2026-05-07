@@ -29,6 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
@@ -77,6 +78,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _sendOtp() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     if (email.isEmpty) return;
 
@@ -114,6 +116,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _verifyOtp() async {
+    if (_isLoading) return;
     final otp = _otpController.text.trim();
     if (otp.isEmpty) return;
 
@@ -122,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await Supabase.instance.client.auth.verifyOTP(
         email: _userEmail,
         token: otp,
-        type: OtpType.magiclink,
+        type: OtpType.email,
       );
     } catch (error) {
       if (mounted) {
