@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+<<<<<<< Updated upstream
+=======
+import '../../core/widgets/pixel_container.dart';
+>>>>>>> Stashed changes
 import '../../core/theme.dart';
 
 class ShopScreen extends StatelessWidget {
