@@ -25,7 +25,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           final type = item['type'] ?? 'ITEM';
           if (_selectedTab == 'ITEMS') return type == 'ITEM';
           if (_selectedTab == 'GEAR') return type == 'GEAR' || type == 'ACCESSORY';
-          if (_selectedTab == 'MONSTERS') return type == 'MONSTER';
+          if (_selectedTab == 'QUESTLINGS') return type == 'MONSTER';
           return false;
         }).toList();
         
@@ -43,7 +43,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _buildTab('MONSTERS', _selectedTab == 'MONSTERS', () => setState(() => _selectedTab = 'MONSTERS'))),
+                  Expanded(child: _buildTab('QUESTLINGS', _selectedTab == 'QUESTLINGS', () => setState(() => _selectedTab = 'QUESTLINGS'))),
                   const SizedBox(width: 8),
                   Expanded(child: _buildTab('ITEMS', _selectedTab == 'ITEMS', () => setState(() => _selectedTab = 'ITEMS'))),
                   const SizedBox(width: 8),
