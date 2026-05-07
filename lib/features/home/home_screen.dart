@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
@@ -85,13 +87,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (quest['maxProgress'] != null && quest['maxProgress'] > 1) {
         quest['progress'] = (quest['progress'] as int) + 1;
         if (quest['progress'] >= quest['maxProgress']) {
-          quest['isDone'] = true;
-          _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
+          _markQuestDone(quest, currentQuestlingType);
+        } else {
+          _saveLocalState();
         }
       } else {
-        quest['isDone'] = true;
         quest['progress'] = 1;
-        _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
+        _markQuestDone(quest, currentQuestlingType);
+      }
+    });
+  }
+
+  void _markQuestDone(Map<String, dynamic> quest, String? currentQuestlingType) {
+    quest['isDone'] = true;
+    _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
+    _saveLocalState();
+    
+    // Refresh automatically by removing it from view after a brief delay
+    Future.delayed(const Duration(milliseconds: 1000), () {
+      if (mounted) {
+        setState(() {
+          quest['isHidden'] = true;
+        });
       }
     });
   }
@@ -106,10 +123,96 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _exp = _exp - _maxExp;
       _maxExp = (_maxExp * 1.2).round();
       _hp = _maxHp;
+      if (_userProfile != null) {
+        _userProfile!['level'] = (_userProfile!['level'] ?? 1) + 1;
+      }
     } else {
       _hp += 2;
       if (_hp > _maxHp) _hp = _maxHp;
     }
+    
+    _saveLocalState();
+    _updateStatsInDb();
+  }
+
+  Future<void> _updateStatsInDb() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null && _userProfile != null) {
+      final userLevel = _userProfile!['level'] ?? 1;
+      try {
+        await Supabase.instance.client
+            .from('users')
+            .update({'xp': _exp, 'level': userLevel})
+            .eq('id', user.id);
+      } catch (e) {
+        debugPrint('Error updating stats in DB: $e');
+      }
+    }
+  }
+
+  Future<void> _saveLocalState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('hp', _hp);
+    await prefs.setInt('maxHp', _maxHp);
+    await prefs.setInt('exp', _exp);
+    await prefs.setInt('maxExp', _maxExp);
+    
+    List<Map<String, dynamic>> simpleQuests = _quests.map((q) => {
+       'title': q['title'],
+       'progress': q['progress'],
+       'isDone': q['isDone'],
+    }).toList();
+    await prefs.setString('quests_state', jsonEncode(simpleQuests));
+  }
+
+  Future<void> _loadLocalState() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final lastResetDate = prefs.getString('last_reset_date');
+    final shouldReset = lastResetDate != today;
+    
+    if (shouldReset) {
+      await prefs.setString('last_reset_date', today);
+    }
+    
+    setState(() {
+      _hp = prefs.getInt('hp') ?? 45;
+      _maxHp = prefs.getInt('maxHp') ?? 50;
+      _exp = prefs.getInt('exp') ?? 120;
+      _maxExp = prefs.getInt('maxExp') ?? 200;
+      
+      if (!shouldReset) {
+        final questsJson = prefs.getString('quests_state');
+        if (questsJson != null) {
+          try {
+            final List<dynamic> decoded = jsonDecode(questsJson);
+            for (var savedQuest in decoded) {
+              final title = savedQuest['title'];
+              final index = _quests.indexWhere((q) => q['title'] == title);
+              if (index != -1) {
+                 _quests[index]['progress'] = savedQuest['progress'];
+                 _quests[index]['isDone'] = savedQuest['isDone'];
+              }
+            }
+          } catch (e) {
+            debugPrint('Error loading quests state: $e');
+          }
+        }
+      } else {
+        // Reset all quests for the new day
+        for (var quest in _quests) {
+          quest['progress'] = 0;
+          quest['isDone'] = false;
+        }
+        _saveLocalState();
+      }
+      
+      // Initialize UI visibility state
+      for (var quest in _quests) {
+        quest['isHidden'] = quest['isDone'] == true;
+      }
+    });
   }
 
   @override
@@ -122,6 +225,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
       CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
     );
+    
+    _loadLocalState();
     _loadProfile();
   }
 
@@ -319,7 +424,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ],
           ),
           const SizedBox(height: 16),
-          ..._quests.asMap().entries.map((entry) {
+          ..._quests.asMap().entries.where((entry) => entry.value['isHidden'] != true).map((entry) {
             final index = entry.key;
             final quest = entry.value;
             return _buildQuestItem(
