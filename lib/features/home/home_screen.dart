@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 
@@ -23,29 +26,70 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _exp = 120;
   int _maxExp = 200;
 
-  final List<Map<String, dynamic>> _quests = [];
+  // Two separate lists for quests
+  List<Map<String, dynamic>> _activeQuests = [];
+  List<Map<String, dynamic>> _completedQuests = [];
+
+  // ----------------------------------------------------------------------
+  // Local JSON storage
+  // ----------------------------------------------------------------------
+
+  Future<File> _getQuestsFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return File('${dir.path}/quests.json');
+  }
+
+  Future<void> _saveQuests() async {
+    try {
+      final file = await _getQuestsFile();
+      final data = {
+        'activeQuests': _activeQuests,
+        'completedQuests': _completedQuests,
+      };
+      await file.writeAsString(jsonEncode(data));
+    } catch (e) {
+      debugPrint('Error saving quests: $e');
+    }
+  }
+
+  Future<void> _loadQuests() async {
+    try {
+      final file = await _getQuestsFile();
+      if (await file.exists()) {
+        final jsonString = await file.readAsString();
+        final Map<String, dynamic> data = jsonDecode(jsonString);
+        setState(() {
+          _activeQuests = List<Map<String, dynamic>>.from(data['activeQuests'] ?? []);
+          _completedQuests = List<Map<String, dynamic>>.from(data['completedQuests'] ?? []);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading quests: $e');
+    }
+  }
+
+  // ----------------------------------------------------------------------
+  // Quest logic
+  // ----------------------------------------------------------------------
 
   void _completeQuestStep(int index, String? currentQuestlingType) {
-    final quest = _quests[index];
-    if (quest['isDone']) return;
+    final quest = _activeQuests[index];
+    if (quest['isDone']) return; // Should never happen but safety
 
     final isTypeMatch = quest['category'] != null && quest['category'] == currentQuestlingType;
     final baseExp = quest['expReward'] as int;
     final finalExp = isTypeMatch ? (baseExp * 1.1).round() : baseExp;
 
-    // Use setState to update the UI immediately
     setState(() {
       if (quest['maxProgress'] != null && quest['maxProgress'] > 1) {
-        // Increment progress
         quest['progress'] = (quest['progress'] as int) + 1;
-        
-        // Check if quest is now complete
+
         if (quest['progress'] >= quest['maxProgress']) {
+          // Quest fully completed → move to completed list after dialog
           quest['isDone'] = true;
-          _showCompletionDialog(quest['title'], finalExp, isTypeMatch);
+          _showCompletionDialog(quest, finalExp, isTypeMatch, index);
         } else {
-          // Just update progress without showing completion dialog
-          // Show a brief feedback that progress was updated
+          // Just increment progress
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Progress updated: ${quest['progress']}/${quest['maxProgress']}'),
@@ -53,16 +97,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               backgroundColor: QuestlingsTheme.primaryAction,
             ),
           );
+          _saveQuests(); // persist progress
         }
       } else {
+        // Single‑step quest → complete immediately
         quest['isDone'] = true;
-        quest['progress'] = 1;
-        _showCompletionDialog(quest['title'], finalExp, isTypeMatch);
+        _showCompletionDialog(quest, finalExp, isTypeMatch, index);
       }
     });
   }
 
-  void _showCompletionDialog(String title, int exp, bool bonusActive) {
+  void _showCompletionDialog(Map<String, dynamic> quest, int exp, bool bonusActive, int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -77,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('"$title" completed!'),
+            Text('"${quest['title']}" completed!'),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -100,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _awardRewards(exp);
+              _awardRewardsAndArchiveQuest(exp, index);
             },
             child: const Text('CLAIM REWARDS', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -109,10 +154,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _awardRewards(int finalExp) {
+  void _awardRewardsAndArchiveQuest(int finalExp, int questIndex) {
     setState(() {
+      // Award EXP and update HP/level
       _exp += finalExp;
-
       if (_exp >= _maxExp) {
         _exp -= _maxExp;
         _maxExp = (_maxExp * 1.2).round();
@@ -121,7 +166,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _hp += 2;
         if (_hp > _maxHp) _hp = _maxHp;
       }
+
+      // Move completed quest from active to completed (limit to 10)
+      final completedQuest = _activeQuests.removeAt(questIndex);
+      // Remove 'isDone' flag (not needed anymore) and add a completion timestamp
+      completedQuest.remove('isDone');
+      completedQuest['completedAt'] = DateTime.now().toIso8601String();
+      _completedQuests.insert(0, completedQuest); // latest first
+      if (_completedQuests.length > 10) {
+        _completedQuests.removeLast();
+      }
     });
+    _saveQuests(); // persist both lists
   }
 
   void _showAddQuestDialog() {
@@ -185,7 +241,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ],
                 ),
                 const SizedBox(height: 16),
-                // Progress Steps Selector
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -274,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 final desc = descController.text.trim();
                 if (title.isEmpty || desc.isEmpty) return;
                 setState(() {
-                  _quests.add({
+                  _activeQuests.add({
                     'title': title,
                     'description': desc,
                     'expReward': selectedExp,
@@ -285,6 +340,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     'category': selectedCategory,
                   });
                 });
+                _saveQuests();
                 Navigator.of(context).pop();
               },
               child: const Text('Add Quest', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -314,6 +370,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+
+  // ----------------------------------------------------------------------
+  // Lifecycle & profile loading
+  // ----------------------------------------------------------------------
 
   @override
   void initState() {
@@ -370,6 +430,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
         _isLoading = false;
       });
+
+      // Load local quests after profile is ready
+      await _loadQuests();
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Error loading profile: $e');
       setState(() => _isLoading = false);
@@ -412,6 +476,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  // ----------------------------------------------------------------------
+  // UI Building
+  // ----------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -433,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Card
+          // Profile Card (unchanged)
           PixelContainer(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,7 +577,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
           const SizedBox(height: 24),
-          // Active Quests Header + Add Button
+
+          // ----- Active Quests Section -----
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -541,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ],
           ),
           const SizedBox(height: 16),
-          ..._quests.asMap().entries.map((entry) {
+          ..._activeQuests.asMap().entries.map((entry) {
             final index = entry.key;
             final quest = entry.value;
             return _buildQuestItem(
@@ -557,7 +626,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onTap: () => _completeQuestStep(index, questlingType),
             );
           }),
-          if (_quests.isEmpty)
+          if (_activeQuests.isEmpty)
             const Padding(
               padding: EdgeInsets.all(32.0),
               child: Center(
@@ -568,6 +637,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
             ),
+
+          const SizedBox(height: 32),
+
+          // ----- Completed Quests Section (max 10) -----
+          if (_completedQuests.isNotEmpty) ...[
+            const Row(
+              children: [
+                Icon(Icons.history, color: QuestlingsTheme.shadow, size: 28),
+                SizedBox(width: 8),
+                Text('Recently Completed', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._completedQuests.map((quest) => _buildCompletedQuestItem(quest)),
+          ],
         ],
       ),
     );
@@ -639,9 +723,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   color: isDone ? QuestlingsTheme.primaryAction : Colors.white,
                   border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                 ),
-                child: isDone
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : null,
+                child: isDone ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -678,8 +760,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           decoration: BoxDecoration(
                             color: isTypeMatch && !isDone ? const Color(0xFFFFF9C4) : (expColor ?? QuestlingsTheme.surface),
                             border: Border.all(
-                              color: isTypeMatch && !isDone ? const Color(0xFFE6C200) : QuestlingsTheme.shadow, 
-                              width: 1.5
+                              color: isTypeMatch && !isDone ? const Color(0xFFE6C200) : QuestlingsTheme.shadow,
+                              width: 1.5,
                             ),
                           ),
                           child: Text(
@@ -769,6 +851,43 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedQuestItem(Map<String, dynamic> quest) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PixelContainer(
+        backgroundColor: QuestlingsTheme.lightGreen.withValues(alpha: 0.5),
+        padding: 12,
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: QuestlingsTheme.primaryAction, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    quest['title'],
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  Text(
+                    quest['description'],
+                    style: TextStyle(fontSize: 12, color: QuestlingsTheme.shadow),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '+${quest['expReward']} EXP',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
