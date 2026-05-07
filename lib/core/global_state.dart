@@ -13,28 +13,32 @@ class GlobalState extends ChangeNotifier {
       'name': 'RED POTION', 
       'count': 5, 
       'desc': 'A medicinal brew that restores 50 HP to a single Monster. Smells faintly of bitter herbs and sweet berries.', 
-      'imageColor': const Color(0xFFD32F2F),
+      'imageColor': Colors.transparent,
+      'imagePath': 'assets/items/redpotion.png',
       'type': 'ITEM'
     },
     {
-      'name': 'EVO STONE', 
+      'name': 'LEVEL UP STONE', 
       'count': 1, 
-      'desc': 'A mysterious stone that pulses with energy.', 
-      'imageColor': const Color(0xFF9E9E9E),
+      'desc': 'A mysterious stone that pulses with energy. Can be used to evolve or level up a questling.', 
+      'imageColor': Colors.transparent,
+      'imagePath': 'assets/items/levelupstone.png',
       'type': 'ITEM'
     },
     {
-      'name': 'BERRIES', 
+      'name': 'GRAPES', 
       'count': 12, 
-      'desc': 'Sweet berries found in the nearby forest. Slightly restores HP.', 
-      'imageColor': const Color(0xFF4CAF50),
+      'desc': 'Sweet grapes found in the nearby forest. Slightly restores HP.', 
+      'imageColor': Colors.transparent,
+      'imagePath': 'assets/items/grapes.png',
       'type': 'ITEM'
     },
     {
       'name': 'ANCIENT SCROLL', 
       'count': 3, 
       'desc': 'Contains forgotten knowledge that might grant EXP.', 
-      'imageColor': const Color(0xFFFFC107),
+      'imageColor': Colors.transparent,
+      'imagePath': 'assets/items/ancientscroll.png',
       'type': 'ITEM'
     },
   ];
