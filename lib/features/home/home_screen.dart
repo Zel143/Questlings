@@ -1,9 +1,6 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 
@@ -30,93 +27,158 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<Map<String, dynamic>> _completedQuests = [];
 
   // ----------------------------------------------------------------------
-  // Local JSON storage
+  // Database operations
   // ----------------------------------------------------------------------
 
-  Future<File> _getQuestsFile() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/quests.json');
+  Future<void> _fetchQuests() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // Fetch active quests
+      final activeResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', ascending: true);
+
+      // Fetch last 10 completed quests (most recent first)
+      final completedResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      setState(() {
+        _activeQuests = List<Map<String, dynamic>>.from(activeResponse);
+        _completedQuests = List<Map<String, dynamic>>.from(completedResponse);
+      });
+      debugPrint('✅ Quests loaded from DB: ${_activeQuests.length} active, ${_completedQuests.length} completed');
+    } catch (e) {
+      debugPrint('❌ Error loading quests from DB: $e');
+    }
   }
 
-  Future<void> _saveQuests() async {
+  Future<void> _addQuestToDB(Map<String, dynamic> questData) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
     try {
-      final file = await _getQuestsFile();
-      // Remove 'expColor' from all quests – Color objects cannot be JSON encoded
-      final cleanActive = _activeQuests.map((q) {
-        final copy = Map<String, dynamic>.from(q);
-        copy.remove('expColor');
-        return copy;
-      }).toList();
-      final cleanCompleted = _completedQuests.map((q) {
-        final copy = Map<String, dynamic>.from(q);
-        copy.remove('expColor');
-        return copy;
-      }).toList();
-      
-      final data = {
-        'activeQuests': cleanActive,
-        'completedQuests': cleanCompleted,
+      final newQuest = {
+        'user_id': userId,
+        'title': questData['title'],
+        'description': questData['description'],
+        'exp_reward': questData['expReward'],
+        'progress': 0,
+        'max_progress': questData['maxProgress'],
+        'category': questData['category'],
+        'status': 'active',
       };
-      await file.writeAsString(jsonEncode(data));
-      debugPrint('✅ Quests saved: ${_activeQuests.length} active, ${_completedQuests.length} completed');
+      final response = await Supabase.instance.client
+          .from('user_quests')
+          .insert(newQuest)
+          .select()
+          .single();
+      setState(() {
+        _activeQuests.add(response);
+      });
+      debugPrint('✅ Quest added to DB: ${response['title']}');
     } catch (e) {
-      debugPrint('❌ Error saving quests: $e');
+      debugPrint('❌ Error adding quest to DB: $e');
     }
   }
 
-  Future<void> _loadQuests() async {
+  Future<void> _updateQuestProgress(String questId, int newProgress, int maxProgress) async {
     try {
-      final file = await _getQuestsFile();
-      if (await file.exists()) {
-        final jsonString = await file.readAsString();
-        final Map<String, dynamic> data = jsonDecode(jsonString);
-        setState(() {
-          _activeQuests = List<Map<String, dynamic>>.from(data['activeQuests'] ?? []);
-          _completedQuests = List<Map<String, dynamic>>.from(data['completedQuests'] ?? []);
-        });
-        debugPrint('✅ Quests loaded: ${_activeQuests.length} active, ${_completedQuests.length} completed');
-      } else {
-        debugPrint('ℹ️ No existing quests file, starting fresh');
-      }
+      await Supabase.instance.client
+          .from('user_quests')
+          .update({'progress': newProgress})
+          .eq('id', questId);
+      debugPrint('✅ Progress updated for quest $questId: $newProgress/$maxProgress');
     } catch (e) {
-      debugPrint('❌ Error loading quests: $e');
+      debugPrint('❌ Error updating progress: $e');
+    }
+  }
+
+  Future<void> _completeQuestInDB(String questId, int finalExp, int questIndex, int maxProgress) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      // Mark as completed in DB, setting progress to maxProgress (non-null)
+      await Supabase.instance.client
+          .from('user_quests')
+          .update({
+            'status': 'completed',
+            'completed_at': DateTime.now().toIso8601String(),
+            'progress': maxProgress, // ensure non-null
+          })
+          .eq('id', questId);
+
+      // Fetch latest 10 completed quests
+      final completedResponse = await Supabase.instance.client
+          .from('user_quests')
+          .select()
+          .eq('user_id', userId)
+          .eq('status', 'completed')
+          .order('completed_at', ascending: false)
+          .limit(10);
+
+      setState(() {
+        // Remove from active list
+        if (questIndex < _activeQuests.length) {
+          _activeQuests.removeAt(questIndex);
+        }
+        // Update completed list
+        _completedQuests = List<Map<String, dynamic>>.from(completedResponse);
+      });
+      debugPrint('✅ Quest completed and archived');
+    } catch (e) {
+      debugPrint('❌ Error completing quest: $e');
     }
   }
 
   // ----------------------------------------------------------------------
-  // Quest logic
+  // Quest logic (adapted for DB)
   // ----------------------------------------------------------------------
 
   void _completeQuestStep(int index, String? currentQuestlingType) {
     final quest = _activeQuests[index];
-    if (quest['isDone']) return;
+    if (quest['status'] != 'active') return; // safety
 
     final isTypeMatch = quest['category'] != null && quest['category'] == currentQuestlingType;
-    final baseExp = quest['expReward'] as int;
+    final baseExp = quest['exp_reward'] as int;
     final finalExp = isTypeMatch ? (baseExp * 1.1).round() : baseExp;
+    final currentProgress = quest['progress'] as int;
+    final maxProgress = quest['max_progress'] as int;
 
-    setState(() {
-      if (quest['maxProgress'] != null && quest['maxProgress'] > 1) {
-        quest['progress'] = (quest['progress'] as int) + 1;
+    if (maxProgress > 1) {
+      // Multi-step quest
+      final newProgress = currentProgress + 1;
+      setState(() {
+        quest['progress'] = newProgress;
+      });
+      _updateQuestProgress(quest['id'], newProgress, maxProgress);
 
-        if (quest['progress'] >= quest['maxProgress']) {
-          quest['isDone'] = true;
-          _showCompletionDialog(quest, finalExp, isTypeMatch, index);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Progress updated: ${quest['progress']}/${quest['maxProgress']}'),
-              duration: const Duration(milliseconds: 800),
-              backgroundColor: QuestlingsTheme.primaryAction,
-            ),
-          );
-          _saveQuests(); // persist progress
-        }
-      } else {
-        quest['isDone'] = true;
+      if (newProgress >= maxProgress) {
+        // Quest finished – show dialog, completion will be handled after rewards
         _showCompletionDialog(quest, finalExp, isTypeMatch, index);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Progress updated: $newProgress/$maxProgress'),
+            duration: const Duration(milliseconds: 800),
+            backgroundColor: QuestlingsTheme.primaryAction,
+          ),
+        );
       }
-    });
+    } else {
+      // Single-step quest – complete immediately
+      _showCompletionDialog(quest, finalExp, isTypeMatch, index);
+    }
   }
 
   void _showCompletionDialog(Map<String, dynamic> quest, int exp, bool bonusActive, int index) {
@@ -157,7 +219,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _awardRewardsAndArchiveQuest(exp, index);
+              final maxProgress = quest['max_progress'] as int; // get from quest
+              _awardRewardsAndArchiveQuest(exp, index, quest['id'], maxProgress);
             },
             child: const Text('CLAIM REWARDS', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -166,9 +229,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _awardRewardsAndArchiveQuest(int finalExp, int questIndex) {
+  void _awardRewardsAndArchiveQuest(int finalExp, int questIndex, String questId, int maxProgress) {
     setState(() {
-      // Award EXP and update HP/level
       _exp += finalExp;
       if (_exp >= _maxExp) {
         _exp -= _maxExp;
@@ -178,17 +240,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _hp += 2;
         if (_hp > _maxHp) _hp = _maxHp;
       }
-
-      // Move completed quest from active to completed (limit to 10)
-      final completedQuest = _activeQuests.removeAt(questIndex);
-      completedQuest.remove('isDone');
-      completedQuest['completedAt'] = DateTime.now().toIso8601String();
-      _completedQuests.insert(0, completedQuest);
-      if (_completedQuests.length > 10) {
-        _completedQuests.removeLast();
-      }
     });
-    _saveQuests();
+    // Archive in DB with maxProgress
+    _completeQuestInDB(questId, finalExp, questIndex, maxProgress);
   }
 
   void _showAddQuestDialog() {
@@ -339,18 +393,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 final title = titleController.text.trim();
                 final desc = descController.text.trim();
                 if (title.isEmpty || desc.isEmpty) return;
-                setState(() {
-                  _activeQuests.add({
-                    'title': title,
-                    'description': desc,
-                    'expReward': selectedExp,
-                    'progress': 0,
-                    'maxProgress': progressSteps,
-                    'isDone': false,
-                    'category': selectedCategory,
-                  });
+                // Add to DB
+                _addQuestToDB({
+                  'title': title,
+                  'description': desc,
+                  'expReward': selectedExp,
+                  'maxProgress': progressSteps,
+                  'category': selectedCategory,
                 });
-                _saveQuests(); // FIX: ensure saving after adding
                 Navigator.of(context).pop();
               },
               child: const Text('Add Quest', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -395,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
       CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
     );
-    _loadProfileAndQuests(); // FIX: combined loading
+    _loadProfileAndQuests();
   }
 
   @override
@@ -440,8 +490,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       });
 
-      // Load quests BEFORE hiding loader
-      await _loadQuests();
+      // Load quests from database
+      await _fetchQuests();
 
       if (mounted) {
         setState(() {
@@ -491,7 +541,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   // ----------------------------------------------------------------------
-  // UI Building
+  // UI Building (unchanged except quest fields mapping)
   // ----------------------------------------------------------------------
 
   @override
@@ -630,11 +680,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             return _buildQuestItem(
               title: quest['title'],
               description: quest['description'],
-              expAmount: quest['expReward'],
+              expAmount: quest['exp_reward'],
               progress: quest['progress'],
-              maxProgress: quest['maxProgress'],
-              isDone: quest['isDone'],
-              expColor: quest['expColor'],
+              maxProgress: quest['max_progress'],
+              isDone: false, // active quests are never "done" in UI sense, but we use status
+              expColor: null, // not used
               category: quest['category'],
               currentQuestlingType: questlingType,
               onTap: () => _completeQuestStep(index, questlingType),
@@ -718,13 +768,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     VoidCallback? onTap,
   }) {
     final isTypeMatch = category != null && category == currentQuestlingType;
-    final displayExp = isTypeMatch && !isDone ? '+$expAmount EXP (+10%)' : (isDone ? 'DONE' : '+$expAmount EXP');
+    final displayExp = isTypeMatch ? '+$expAmount EXP (+10%)' : '+$expAmount EXP';
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: GestureDetector(
         onTap: onTap,
         child: PixelContainer(
-          backgroundColor: isDone ? QuestlingsTheme.lightGreen : Colors.white,
+          backgroundColor: Colors.white,
           padding: 12,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -734,10 +784,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 height: 24,
                 margin: const EdgeInsets.only(top: 2),
                 decoration: BoxDecoration(
-                  color: isDone ? QuestlingsTheme.primaryAction : Colors.white,
+                  color: Colors.white,
                   border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                 ),
-                child: isDone ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                child: null, // checkbox not checked until completed, but we don't show check for active
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -753,15 +803,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               Flexible(
                                 child: Text(
                                   title,
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    decoration: isDone ? TextDecoration.lineThrough : null,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (isTypeMatch && !isDone) ...[
+                              if (isTypeMatch) ...[
                                 const SizedBox(width: 8),
                                 const Icon(Icons.star, color: Color(0xFFE6C200), size: 18),
                               ],
@@ -772,9 +821,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: isTypeMatch && !isDone ? const Color(0xFFFFF9C4) : (expColor ?? QuestlingsTheme.surface),
+                            color: isTypeMatch ? const Color(0xFFFFF9C4) : QuestlingsTheme.surface,
                             border: Border.all(
-                              color: isTypeMatch && !isDone ? const Color(0xFFE6C200) : QuestlingsTheme.shadow,
+                              color: isTypeMatch ? const Color(0xFFE6C200) : QuestlingsTheme.shadow,
                               width: 1.5,
                             ),
                           ),
@@ -783,7 +832,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: isTypeMatch && !isDone ? const Color(0xFFB89B00) : (isDone ? Colors.white : QuestlingsTheme.shadow),
+                              color: isTypeMatch ? const Color(0xFFB89B00) : QuestlingsTheme.shadow,
                             ),
                           ),
                         ),
@@ -795,10 +844,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       style: TextStyle(
                         fontSize: 14,
                         color: QuestlingsTheme.shadow,
-                        decoration: isDone ? TextDecoration.lineThrough : null,
                       ),
                     ),
-                    if (progress != null && maxProgress != null && maxProgress > 1 && !isDone) ...[
+                    if (progress != null && maxProgress != null && maxProgress > 1) ...[
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -819,37 +867,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: index < progress ? const Color(0xFF2B5B84) : Colors.white,
-                                  border: index < maxProgress - 1
-                                      ? const Border(right: BorderSide(color: QuestlingsTheme.shadow, width: 1.5))
-                                      : null,
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    ],
-                    if (progress != null && maxProgress != null && maxProgress > 1 && isDone) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('COMPLETED', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.bold)),
-                          Text('$progress/$maxProgress', style: const TextStyle(fontSize: 10)),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: QuestlingsTheme.shadow, width: 1.5),
-                        ),
-                        child: Row(
-                          children: List.generate(maxProgress, (index) {
-                            return Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: index < progress ? QuestlingsTheme.primaryAction : Colors.white,
                                   border: index < maxProgress - 1
                                       ? const Border(right: BorderSide(color: QuestlingsTheme.shadow, width: 1.5))
                                       : null,
@@ -898,7 +915,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
             Text(
-              '+${quest['expReward']} EXP',
+              '+${quest['exp_reward']} EXP',
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
