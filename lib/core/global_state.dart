@@ -39,7 +39,7 @@ class GlobalState extends ChangeNotifier {
     },
   ];
 
-  bool buyItem(String name, int price, String desc, Color imageColor, [String type = 'ITEM']) {
+  bool buyItem(String name, int price, String desc, Color imageColor, [String type = 'ITEM', String? imagePath]) {
     if (stardust >= price) {
       stardust -= price;
       
@@ -53,6 +53,7 @@ class GlobalState extends ChangeNotifier {
           'count': 1,
           'desc': desc,
           'imageColor': imageColor,
+          'imagePath': imagePath,
           'type': type,
         });
       }

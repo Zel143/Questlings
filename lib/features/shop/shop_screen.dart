@@ -16,51 +16,56 @@ class _ShopScreenState extends State<ShopScreen> {
   final Map<String, List<Map<String, dynamic>>> _shopItems = {
     'ACCESSORIES': [
       {
-        'title': 'FLAME COLLAR',
-        'desc': 'Boosts fire-type stats during battle.',
-        'price': '300',
+        'title': 'CHAMPION MEDAL',
+        'desc': 'A medal given only to the best of the best.',
+        'price': '500',
         'buttonColor': QuestlingsTheme.brownAction,
-        'imageColor': const Color(0xFFF2E3B6),
+        'imageColor': Colors.transparent,
+        'imagePath': 'assets/items/championsmedal.png',
+        'type': 'ACCESSORY',
+        'soldOut': false,
+      },
+      {
+        'title': 'WATCH TECH',
+        'desc': 'High-tech device to keep track of time and stats.',
+        'price': '800',
+        'buttonColor': QuestlingsTheme.brownAction,
+        'imageColor': Colors.transparent,
+        'imagePath': 'assets/items/watchtech.png',
         'type': 'ACCESSORY',
         'soldOut': false,
       },
     ],
     'GEAR': [
       {
-        'title': 'ADVENTURER BAG',
-        'desc': 'Expands inventory by 10 slots.',
-        'price': '1200',
+        'title': 'MASTER PALLET',
+        'desc': 'A pallet filled with magical colors.',
+        'price': '1000',
         'buttonColor': QuestlingsTheme.brownAction,
-        'imageColor': const Color(0xFF26323E),
+        'imageColor': Colors.transparent,
+        'imagePath': 'assets/items/masterpallete.png',
         'type': 'GEAR',
         'soldOut': false,
       },
       {
-        'title': 'WOODEN SHIELD',
-        'desc': 'Provides basic defense.',
-        'price': '150',
+        'title': 'SCHOLAR BAG',
+        'desc': 'A sturdy bag for carrying all your knowledge.',
+        'price': '1200',
         'buttonColor': QuestlingsTheme.brownAction,
-        'imageColor': const Color(0xFF795548),
+        'imageColor': Colors.transparent,
+        'imagePath': 'assets/items/scholarbag.png',
         'type': 'GEAR',
         'soldOut': false,
       },
     ],
     'EVOLUTION': [
       {
-        'title': 'AQUA STONE',
-        'desc': 'Triggers evolution for aquatic questlings.',
-        'price': '850',
-        'buttonColor': QuestlingsTheme.blueAction,
-        'imageColor': const Color(0xFF0D131B),
-        'type': 'EVOLUTION',
-        'soldOut': false,
-      },
-      {
         'title': 'MYSTERY EGG',
         'desc': 'Who knows what will hatch?',
         'price': '???',
         'buttonColor': QuestlingsTheme.surface,
-        'imageColor': QuestlingsTheme.surface,
+        'imageColor': Colors.transparent,
+        'imagePath': 'assets/items/mystery.png',
         'type': 'EVOLUTION',
         'soldOut': true,
       },
@@ -202,6 +207,7 @@ class _ShopScreenState extends State<ShopScreen> {
       price: item['price'],
       buttonColor: item['buttonColor'],
       imageColor: item['imageColor'],
+      imagePath: item['imagePath'],
       type: item['type'],
     );
 
@@ -256,6 +262,7 @@ class _ShopScreenState extends State<ShopScreen> {
     required String price,
     required Color buttonColor,
     required Color imageColor,
+    String? imagePath,
     required String type,
   }) {
     return PixelContainer(
@@ -270,6 +277,12 @@ class _ShopScreenState extends State<ShopScreen> {
               color: imageColor,
               border: Border.all(color: QuestlingsTheme.shadow, width: 2),
             ),
+            child: imagePath != null
+                ? Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.asset(imagePath, fit: BoxFit.contain),
+                  )
+                : null,
           ),
           const SizedBox(height: 12),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
@@ -295,7 +308,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     return;
                   }
                   int cost = int.tryParse(price) ?? 0;
-                  bool success = GlobalState().buyItem(title, cost, desc, imageColor, type);
+                  bool success = GlobalState().buyItem(title, cost, desc, imageColor, type, imagePath);
                   if (success) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully bought $title!')));
                   } else {

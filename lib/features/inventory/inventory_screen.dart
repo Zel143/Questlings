@@ -94,6 +94,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               count: item['count'] as int,
                               isSelected: _selectedItemIndex == index,
                               imageColor: item['imageColor'] as Color,
+                              imagePath: item['imagePath'] as String?,
                             ),
                           );
                         }
@@ -117,6 +118,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                           color: selectedItem['imageColor'] as Color,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                         ),
+                        child: selectedItem['imagePath'] != null
+                            ? Padding(
+                                padding: const EdgeInsets.all(4.0),
+                                child: Image.asset(selectedItem['imagePath'], fit: BoxFit.contain),
+                              )
+                            : null,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -211,6 +218,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         color: item['imageColor'] as Color,
                         border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                       ),
+                      child: item['imagePath'] != null
+                          ? Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Image.asset(item['imagePath'], fit: BoxFit.contain),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -289,7 +302,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  Widget _buildItemSlot({required int count, required Color imageColor, bool isSelected = false}) {
+  Widget _buildItemSlot({required int count, required Color imageColor, bool isSelected = false, String? imagePath}) {
     return Container(
       decoration: BoxDecoration(
         color: imageColor,
@@ -300,6 +313,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
       child: Stack(
         children: [
+          if (imagePath != null)
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: Image.asset(imagePath, fit: BoxFit.contain),
+              ),
+            ),
           Positioned(
             bottom: 0,
             right: 0,
