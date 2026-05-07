@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 import '../../core/global_state.dart';
@@ -142,7 +143,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 ),
                                 GestureDetector(
                                   onTap: () {
-                                    state.useItem(selectedItem['name']);
+                                    final itemName = selectedItem['name'];
+                                    state.useItem(itemName);
+                                    if (itemName == 'LEVEL UP STONE') {
+                                      context.push('/evolution');
+                                    }
                                   },
                                   child: const Text('Use', style: TextStyle(color: QuestlingsTheme.brownAction, fontWeight: FontWeight.bold, decoration: TextDecoration.underline)),
                                 ),
@@ -257,8 +262,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     const SizedBox(width: 16),
                     GestureDetector(
                       onTap: () {
-                        GlobalState().useItem(item['name']);
+                        final itemName = item['name'];
+                        GlobalState().useItem(itemName);
                         Navigator.of(context).pop();
+                        if (itemName == 'LEVEL UP STONE') {
+                          context.push('/evolution');
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

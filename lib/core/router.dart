@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show ConsumerWidget, WidgetRef;
 import 'dart:async';
 import 'theme.dart';
+import '../features/home/evolution_screen.dart';
 
 class MainLayout extends ConsumerWidget {
   final StatefulNavigationShell navigationShell;
@@ -173,6 +174,13 @@ final router = GoRouter(
     GoRoute(
       path: '/setup',
       builder: (context, state) => const SetupScreen(),
+    ),
+    GoRoute(
+      path: '/evolution',
+      builder: (context, state) {
+        final gifPath = state.extra as String? ?? 'assets/sprites/Sports-ling/Animation_Starter1.gif';
+        return EvolutionScreen(gifPath: gifPath);
+      },
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
