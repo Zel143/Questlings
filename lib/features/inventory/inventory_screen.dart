@@ -88,9 +88,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               setState(() {
                                 _selectedItemIndex = index;
                               });
+                              _showItemPopup(context, item);
                             },
                             child: _buildItemSlot(
-                              name: item['name'].toString(),
                               count: item['count'] as int,
                               isSelected: _selectedItemIndex == index,
                               imageColor: item['imageColor'] as Color,
@@ -189,6 +189,84 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
+  void _showItemPopup(BuildContext context, Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: PixelContainer(
+            padding: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: item['imageColor'] as Color,
+                        border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${item['name'].toString().toUpperCase()} (${item['type'] ?? 'ITEM'})',
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1.5),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            item['desc'].toString(),
+                            style: TextStyle(color: QuestlingsTheme.shadow.withOpacity(0.8), fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('CLOSE', style: TextStyle(color: QuestlingsTheme.shadow, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 16),
+                    GestureDetector(
+                      onTap: () {
+                        GlobalState().useItem(item['name']);
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: QuestlingsTheme.primaryAction,
+                          border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                          boxShadow: const [BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(2, 2))],
+                        ),
+                        child: const Text('USE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildTab(String text, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -211,56 +289,30 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  Widget _buildItemSlot({required String name, required int count, required Color imageColor, bool isSelected = false}) {
-    return Tooltip(
-      message: name,
-      child: Container(
-        decoration: BoxDecoration(
-          color: imageColor,
-          border: Border.all(
-            color: isSelected ? QuestlingsTheme.primaryAction : QuestlingsTheme.shadow,
-            width: isSelected ? 4 : 2,
+  Widget _buildItemSlot({required int count, required Color imageColor, bool isSelected = false}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: imageColor,
+        border: Border.all(
+          color: isSelected ? QuestlingsTheme.primaryAction : QuestlingsTheme.shadow,
+          width: isSelected ? 4 : 2,
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              color: Colors.white,
+              child: Text(
+                'x$count',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                child: Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(1.0, 1.0),
-                        blurRadius: 3.0,
-                        color: Color.fromARGB(255, 0, 0, 0),
-                      ),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                color: Colors.white,
-                child: Text(
-                  'x$count',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
