@@ -43,28 +43,39 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
 
   Future<void> _loadParty() async {
     if (_currentUserId == null) return;
-    // Reset state so UI shows loading on re-fetch
     if (mounted) setState(() { _isLoadingParty = true; _party = null; _partyMembers = []; });
     try {
       final userData = await Supabase.instance.client
           .from('users').select('party_id').eq('id', _currentUserId!).maybeSingle();
+      
       if (userData == null || userData['party_id'] == null) {
         if (mounted) setState(() => _isLoadingParty = false);
         return;
       }
+
       final partyId = userData['party_id'];
-      final partyData = await Supabase.instance.client
+      
+      // Fetch party details and members with their profiles
+      final partyFuture = Supabase.instance.client
           .from('parties').select('*').eq('id', partyId).maybeSingle();
+      final membersFuture = Supabase.instance.client
+          .from('party_members')
+          .select('user:users(id, username, level)')
+          .eq('party_id', partyId);
+
+      final partyData = await partyFuture;
+      final membersData = await membersFuture;
+
       if (partyData != null) {
-        final members = await Supabase.instance.client
-            .from('party_members').select('user_id').eq('party_id', partyId);
-        List<Map<String, dynamic>> memberDetails = [];
-        for (final member in members) {
-          final userProfile = await Supabase.instance.client
-              .from('users').select('id, username, level').eq('id', member['user_id']).maybeSingle();
-          if (userProfile != null) memberDetails.add(userProfile);
-        }
-        setState(() { _party = partyData; _partyMembers = memberDetails; _isLoadingParty = false; });
+        final List<Map<String, dynamic>> memberDetails = membersData
+            .map((m) => m['user'] as Map<String, dynamic>)
+            .toList();
+            
+        setState(() { 
+          _party = partyData; 
+          _partyMembers = memberDetails; 
+          _isLoadingParty = false; 
+        });
       } else {
         setState(() => _isLoadingParty = false);
       }
@@ -123,7 +134,9 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Friend added to your party! 🎉')),
         );
+        // Refresh friends list so their party_id updates (shows "In Party" badge)
         ref.invalidate(friendsListProvider);
+        // Reload party data — the RPC may have created a new party
         await _loadParty();
         // Switch to Party tab so the user sees the updated roster
         _tabController.animateTo(0);
@@ -394,32 +407,36 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
             if (friends.isEmpty) return PixelContainer(padding: 20, child: const Center(
               child: Text('No friends yet.\nSearch for users and send requests!', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))));
             return Column(children: friends.map((friend) {
-              final isInMyParty = _party != null && friend.partyId == _party!['id'];
+              final isInMyParty = _party != null && friend.partyId != null && friend.partyId == _party!['id'];
               final isInviting = _invitingFriends.contains(friend.id);
               return Padding(padding: const EdgeInsets.only(bottom: 8), child: PixelContainer(padding: 12,
                 child: Row(children: [
                   Container(width: 44, height: 44,
-                    decoration: BoxDecoration(color: QuestlingsTheme.surface, border: Border.all(color: QuestlingsTheme.shadow, width: 2)),
+                    decoration: BoxDecoration(
+                      color: isInMyParty ? QuestlingsTheme.lightGreen : QuestlingsTheme.surface,
+                      border: Border.all(color: QuestlingsTheme.shadow, width: 2)),
                     child: Center(child: Text(friend.username[0].toUpperCase(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)))),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(friend.username, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     Text('Lv. ${friend.level}', style: const TextStyle(fontSize: 12, color: QuestlingsTheme.shadow)),
                   ])),
-                  if (_party != null && !isInMyParty)
+                  // Show "Add to Party" for friends NOT in your party
+                  if (!isInMyParty)
                     GestureDetector(
                       onTap: isInviting ? null : () => _inviteFriendToParty(friend.id),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(color: isInviting ? QuestlingsTheme.shadow.withValues(alpha: 0.3) : QuestlingsTheme.blueAction,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2)),
-                        child: Text(isInviting ? '...' : 'Invite', style: TextStyle(color: isInviting ? QuestlingsTheme.shadow : Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        child: Text(isInviting ? '...' : '+ Party', style: TextStyle(color: isInviting ? QuestlingsTheme.shadow : Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                       ),
                     )
-                  else if (isInMyParty)
+                  // Show "In Party ✓" badge for friends already in your party
+                  else
                     Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(color: QuestlingsTheme.lightGreen, border: Border.all(color: QuestlingsTheme.shadow, width: 2)),
-                      child: const Text('In Party', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      child: const Text('In Party ✓', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
                 ]),
               ));
             }).toList());
