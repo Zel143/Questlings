@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           .maybeSingle();
 
       if (profileResponse == null) {
-        if (mounted) context.go('/setup');
+        if (mounted) context.go('/username');
         return;
       }
 

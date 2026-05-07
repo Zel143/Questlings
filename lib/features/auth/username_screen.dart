@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/theme.dart';
-import '../../core/router.dart' show needsUsernameSetup;
 import '../../core/widgets/pixel_container.dart';
 import '../../core/widgets/pixel_button.dart';
 
@@ -47,8 +46,7 @@ class _UsernameScreenState extends State<UsernameScreen> {
       if (!mounted) return;
 
       if (response != null) {
-        // User already exists - skip to home
-        needsUsernameSetup = false;
+        // User already exists - go to home
         GoRouter.of(context).go('/');
         return;
       }
@@ -93,19 +91,17 @@ class _UsernameScreenState extends State<UsernameScreen> {
 
       if (!mounted) return;
 
-      // Mark setup as complete
-      needsUsernameSetup = false;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Welcome, adventurer!'),
+          content: Text('Username saved! Now pick your companion.'),
           backgroundColor: QuestlingsTheme.primaryAction,
         ),
       );
       // Small delay so snackbar shows
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
-      GoRouter.of(context).go('/');
+      // Navigate to setup screen to choose starter questling
+      GoRouter.of(context).go('/setup');
     } catch (error) {
       if (!mounted) return;
 

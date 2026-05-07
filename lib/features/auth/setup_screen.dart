@@ -13,7 +13,6 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStateMixin {
-  final _usernameController = TextEditingController();
   final _questlingNameController = TextEditingController();
   
   bool _isLoading = false;
@@ -67,19 +66,17 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _questlingNameController.dispose();
     _bounceController.dispose();
     super.dispose();
   }
 
   Future<void> _submitSetup() async {
-    final username = _usernameController.text.trim();
     final questlingName = _questlingNameController.text.trim();
 
-    if (username.isEmpty || questlingName.isEmpty) {
+    if (questlingName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out all fields.')),
+        const SnackBar(content: Text('Please give your companion a name.')),
       );
       return;
     }
@@ -92,16 +89,7 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
 
       final selectedStarter = _starters[_selectedStarterIndex];
 
-      // 1. Create User Profile
-      await Supabase.instance.client.from('users').insert({
-        'id': user.id,
-        'username': username,
-        'level': 1,
-        'xp': 0,
-        'stardust': 0,
-      });
-
-      // 2. Create User Questling (links to the dictionary entry)
+      // 1. Create User Questling (links to the dictionary entry)
       final questlingResponse = await Supabase.instance.client.from('user_questlings').insert({
         'user_id': user.id,
         'questling_id': selectedStarter['id'],
@@ -112,7 +100,7 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
 
       final userQuestlingId = questlingResponse['id'];
 
-      // 3. Equip the Questling on the user profile
+      // 2. Equip the Questling on the user profile
       await Supabase.instance.client.from('users').update({
         'equipped_questling_id': userQuestlingId,
       }).eq('id', user.id);
@@ -160,25 +148,6 @@ class _SetupScreenState extends State<SetupScreen> with SingleTickerProviderStat
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
               ),
               const SizedBox(height: 32),
-              
-              // Username Field
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: QuestlingsTheme.shadow, width: 2),
-                  boxShadow: const [BoxShadow(color: QuestlingsTheme.shadow, offset: Offset(4, 4))],
-                ),
-                child: TextField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    labelStyle: TextStyle(fontWeight: FontWeight.bold, color: QuestlingsTheme.shadow),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
               
               // --- Starter Selection ---
               const Text(
