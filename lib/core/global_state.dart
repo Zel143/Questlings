@@ -39,7 +39,7 @@ class GlobalState extends ChangeNotifier {
     },
   ];
 
-  bool buyItem(String name, int price, String desc, Color imageColor) {
+  bool buyItem(String name, int price, String desc, Color imageColor, [String type = 'ITEM']) {
     if (stardust >= price) {
       stardust -= price;
       
@@ -53,12 +53,36 @@ class GlobalState extends ChangeNotifier {
           'count': 1,
           'desc': desc,
           'imageColor': imageColor,
-          'type': 'ITEM',
+          'type': type,
         });
       }
       notifyListeners();
       return true;
     }
     return false;
+  }
+
+  void useItem(String name) {
+    int index = inventory.indexWhere((item) => item['name'] == name);
+    if (index >= 0) {
+      inventory[index]['count'] = (inventory[index]['count'] as int) - 1;
+      if (inventory[index]['count'] <= 0) {
+        inventory.removeAt(index);
+      }
+      notifyListeners();
+    }
+  }
+
+  void trashItem(String name) {
+    int index = inventory.indexWhere((item) => item['name'] == name);
+    if (index >= 0) {
+      inventory.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void sortItems() {
+    inventory.sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
+    notifyListeners();
   }
 }
