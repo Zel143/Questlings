@@ -46,6 +46,11 @@ BEGIN
     VALUES (v_my_id, v_party_id, 0) ON CONFLICT DO NOTHING;
   END IF;
 
+  -- Enforce 4-member party cap
+  IF (SELECT COUNT(*) FROM party_members WHERE party_id = v_party_id) >= 4 THEN
+    RAISE EXCEPTION 'Party is full (max 4 members)';
+  END IF;
+
   -- Add the friend to the party
   UPDATE users SET party_id = v_party_id WHERE id = p_friend_id;
   INSERT INTO party_members (user_id, party_id, weekly_energy_contribution)

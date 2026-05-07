@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
@@ -174,6 +176,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             backgroundColor: QuestlingsTheme.primaryAction,
           ),
         );
+      }
+      // Trigger level up screen
+      if (mounted) {
+        final gifPath = _getGifPath(currentQuestlingType);
+        context.push('/evolution', extra: gifPath);
       }
     } else {
       // Single-step quest – complete immediately
@@ -525,6 +532,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  /// Returns the local asset path for the equipped questling's animated GIF.
+  String _getGifPath(String? type) {
+    switch (type) {
+      case 'Sports':
+        return 'assets/sprites/Sports-ling/Animation_Starter1.gif';
+      case 'Tech':
+        return 'assets/sprites/Tech-ling/Animation_Starter2.gif';
+      case 'Art':
+        return 'assets/sprites/Art-ling/Animation_Starter3.gif';
+      case 'School':
+        return 'assets/sprites/Skool-ling/Animation_Starter4.gif';
+      default:
+        return 'assets/sprites/Sports-ling/Animation_Starter1.gif';
+    }
+  }
+
+  /// Returns a color associated with each questling type for visual theming.
   Color _getTypeColor(String type) {
     switch (type) {
       case 'Sports':
