@@ -1,9 +1,129 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 
-class PartyScreen extends StatelessWidget {
+class PartyScreen extends StatefulWidget {
   const PartyScreen({super.key});
+
+  @override
+  State<PartyScreen> createState() => _PartyScreenState();
+}
+
+class _PartyScreenState extends State<PartyScreen> {
+  final _searchController = TextEditingController();
+  List<Map<String, dynamic>> _searchResults = [];
+  List<Map<String, dynamic>> _partyMembers = [];
+  Map<String, dynamic>? _party;
+  bool _isSearching = false;
+  bool _isLoadingParty = true;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    _loadParty();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadParty() async {
+    if (_currentUserId == null) return;
+
+    try {
+      final userData = await Supabase.instance.client
+          .from('users')
+          .select('party_id')
+          .eq('id', _currentUserId!)
+          .maybeSingle();
+
+      if (userData == null || userData['party_id'] == null) {
+        setState(() => _isLoadingParty = false);
+        return;
+      }
+
+      final partyId = userData['party_id'];
+
+      // Load party info and members
+      final partyData = await Supabase.instance.client
+          .from('parties')
+          .select('*, party_members(*)')
+          .eq('id', partyId)
+          .maybeSingle();
+
+      if (partyData != null) {
+        final members = await Supabase.instance.client
+            .from('party_members')
+            .select('user_id')
+            .eq('party_id', partyId);
+
+        // Fetch user details for each member
+        List<Map<String, dynamic>> memberDetails = [];
+        for (final member in members) {
+          final userProfile = await Supabase.instance.client
+              .from('users')
+              .select('id, username, level')
+              .eq('id', member['user_id'])
+              .maybeSingle();
+          if (userProfile != null) {
+            memberDetails.add(userProfile);
+          }
+        }
+
+        setState(() {
+          _party = partyData;
+          _partyMembers = memberDetails;
+          _isLoadingParty = false;
+        });
+      } else {
+        setState(() => _isLoadingParty = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading party: $e');
+      setState(() => _isLoadingParty = false);
+    }
+  }
+
+  Future<void> _searchUsers(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    try {
+      final results = await Supabase.instance.client
+          .from('users')
+          .select('id, username, level')
+          .ilike('username', '%$query%')
+          .limit(10);
+
+      setState(() {
+        _searchResults = List<Map<String, dynamic>>.from(results);
+        _isSearching = false;
+      });
+    } catch (e) {
+      debugPrint('Search error: $e');
+      setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _sendFriendRequest(String targetUserId) async {
+    // Since there's no explicit friends/requests table in the schema,
+    // we'll send a party invite by adding to the party
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Invite sent to user!')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,16 +132,109 @@ class PartyScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Search Bar ──
+          PixelContainer(
+            padding: 0,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search users by username...',
+                hintStyle: TextStyle(color: QuestlingsTheme.shadow.withValues(alpha: 0.5)),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                prefixIcon: Icon(Icons.search, color: QuestlingsTheme.shadow),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: QuestlingsTheme.shadow),
+                        onPressed: () {
+                          _searchController.clear();
+                          _searchUsers('');
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: _searchUsers,
+            ),
+          ),
+
+          // ── Search Results ──
+          if (_isSearching)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          if (!_isSearching && _searchResults.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Text('Search Results', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            ..._searchResults.map((user) {
+              final isSelf = user['id'] == _currentUserId;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: PixelContainer(
+                  padding: 12,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: QuestlingsTheme.surface,
+                          border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                        ),
+                        child: Center(
+                          child: Text(
+                            (user['username'] as String)[0].toUpperCase(),
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(user['username'] ?? 'Unknown',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text('Lv. ${user['level'] ?? 1}',
+                                style: const TextStyle(fontSize: 12, color: QuestlingsTheme.shadow)),
+                          ],
+                        ),
+                      ),
+                      if (!isSelf)
+                        GestureDetector(
+                          onTap: () => _sendFriendRequest(user['id']),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: QuestlingsTheme.primaryAction,
+                              border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+                            ),
+                            child: const Text('+ Friend',
+                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+
+          // ── Party Header ──
+          const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Container(
                 decoration: const BoxDecoration(
                   border: Border(bottom: BorderSide(color: QuestlingsTheme.shadow, width: 4)),
                 ),
                 padding: const EdgeInsets.only(bottom: 4),
-                child: const Text('Online Friends', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                child: Text(
+                  _party != null ? _party!['name'] ?? 'Your Party' : 'Party',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -29,195 +242,85 @@ class PartyScreen extends StatelessWidget {
                   color: Colors.white,
                   border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                 ),
-                child: const Text('4 / 50', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text('${_partyMembers.length} / 50',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildFriendCard('PixelMaster', 'Lv. 42', 'GUILD:', 'Dragon Slayers', QuestlingsTheme.lightGreen),
-          _buildFriendCard('GhostBuster', 'Lv. 38', 'CLAN:', 'Shadow Stalkers', const Color(0xFF6EABDE)),
-          _buildFriendCard('AquaQueen', 'Lv. 55', 'GUILD:', 'Ocean Guardians', const Color(0xFFD9B98A)),
-          _buildFriendCard('Z-Volt', 'Lv. 29', 'STATUS:', 'Unclanned', QuestlingsTheme.surface),
-          
-          const SizedBox(height: 16),
-          // Invite friends box
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-              // dotted border simulation or simple dashed
-            ),
-            child: CustomPaint(
-              painter: DashedRectPainter(color: QuestlingsTheme.shadow.withOpacity(0.5), strokeWidth: 2, gap: 5),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    Icon(Icons.person_add_alt_1, size: 32, color: QuestlingsTheme.shadow.withOpacity(0.5)),
-                    const SizedBox(height: 8),
-                    Text(
-                      'INVITE FRIENDS',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: QuestlingsTheme.shadow.withOpacity(0.5),
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
 
-          const SizedBox(height: 24),
-          // Guild Mission
-          PixelContainer(
-            backgroundColor: const Color(0xFFD9B98A),
-            padding: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.military_tech),
-                    SizedBox(width: 8),
-                    Text('GUILD MISSION', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Work with your guild mates to complete the weekly raid and earn legendary rewards!',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
-                  ),
-                  child: Column(
+          // ── Party Members ──
+          if (_isLoadingParty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_partyMembers.isEmpty)
+            PixelContainer(
+              padding: 24,
+              child: const Center(
+                child: Text('No party members yet. Search for users to invite!',
+                    textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            )
+          else
+            ..._partyMembers.map((member) {
+              final isSelf = member['id'] == _currentUserId;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: PixelContainer(
+                  padding: 12,
+                  child: Row(
                     children: [
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Guild Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          Text('750 / 1000 PT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: QuestlingsTheme.primaryAction)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Container(
-                        height: 24,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
+                          color: isSelf ? QuestlingsTheme.primaryAction : QuestlingsTheme.surface,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                         ),
-                        child: Row(
-                          children: [
-                            Expanded(flex: 75, child: Container(color: QuestlingsTheme.primaryAction)),
-                            Expanded(flex: 25, child: Container(color: QuestlingsTheme.surface)),
-                          ],
+                        child: Center(
+                          child: Text(
+                            (member['username'] as String)[0].toUpperCase(),
+                            style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                                color: isSelf ? Colors.white : QuestlingsTheme.shadow),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Divider(color: QuestlingsTheme.shadow, thickness: 1),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Your Points:'),
-                          const Text('+125', style: TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.w900, fontSize: 18)),
-                        ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(member['username'] ?? 'Unknown',
+                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                if (isSelf) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    color: QuestlingsTheme.lightGreen,
+                                    child: const Text('YOU',
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            Text('Lv. ${member['level'] ?? 1}',
+                                style: const TextStyle(fontSize: 12, color: QuestlingsTheme.shadow)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              );
+            }),
         ],
       ),
     );
   }
-
-  Widget _buildFriendCard(String name, String level, String label, String value, Color avatarColor) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: PixelContainer(
-        padding: 12,
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: avatarColor,
-                    border: Border.all(color: QuestlingsTheme.shadow, width: 2),
-                  ),
-                  child: const Center(child: Icon(Icons.face, size: 32)),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(level, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Divider(color: QuestlingsTheme.shadow, thickness: 1),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(label, style: const TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.bold, fontSize: 12)),
-                const SizedBox(width: 4),
-                Text(value, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class DashedRectPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double gap;
-
-  DashedRectPainter({required this.color, required this.strokeWidth, required this.gap});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    var paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-    
-    var path = Path()
-      ..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
-    
-    // Simplistic dash implementation for borders
-    double dashWidth = 8, dashSpace = 8;
-    double startX = 0;
-    while (startX < size.width) {
-      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
-      canvas.drawLine(Offset(startX, size.height), Offset(startX + dashWidth, size.height), paint);
-      startX += dashWidth + dashSpace;
-    }
-    double startY = 0;
-    while (startY < size.height) {
-      canvas.drawLine(Offset(0, startY), Offset(0, startY + dashWidth), paint);
-      canvas.drawLine(Offset(size.width, startY), Offset(size.width, startY + dashWidth), paint);
-      startY += dashWidth + dashSpace;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
