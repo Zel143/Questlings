@@ -124,6 +124,10 @@ BEGIN
 
   -- Update receiver if needed
   IF v_my_party IS DISTINCT FROM v_party_id THEN
+    -- Enforce 4-member party cap
+    IF (SELECT COUNT(*) FROM party_members WHERE party_id = v_party_id) >= 4 THEN
+      RAISE EXCEPTION 'Party is full (max 4 members)';
+    END IF;
     UPDATE users SET party_id = v_party_id WHERE id = v_my_id;
     INSERT INTO party_members (user_id, party_id, weekly_energy_contribution)
     VALUES (v_my_id, v_party_id, 0)
@@ -132,6 +136,10 @@ BEGIN
 
   -- Update sender if needed
   IF v_sender_party IS DISTINCT FROM v_party_id THEN
+    -- Enforce 4-member party cap
+    IF (SELECT COUNT(*) FROM party_members WHERE party_id = v_party_id) >= 4 THEN
+      RAISE EXCEPTION 'Party is full (max 4 members)';
+    END IF;
     UPDATE users SET party_id = v_party_id WHERE id = p_sender_id;
     INSERT INTO party_members (user_id, party_id, weekly_energy_contribution)
     VALUES (p_sender_id, v_party_id, 0)
@@ -146,5 +154,19 @@ $$;
 -- ==========================================
 -- ENABLE REALTIME
 -- ==========================================
-ALTER PUBLICATION supabase_realtime ADD TABLE friend_requests;
-ALTER PUBLICATION supabase_realtime ADD TABLE friendships;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'friend_requests'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE friend_requests;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'friendships'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE friendships;
+  END IF;
+END $$;
