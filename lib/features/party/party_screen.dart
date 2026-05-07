@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
+import 'social_provider.dart';
 
-class PartyScreen extends StatefulWidget {
+class PartyScreen extends ConsumerStatefulWidget {
   const PartyScreen({super.key});
 
   @override
-  State<PartyScreen> createState() => _PartyScreenState();
+  ConsumerState<PartyScreen> createState() => _PartyScreenState();
 }
 
-class _PartyScreenState extends State<PartyScreen> {
+class _PartyScreenState extends ConsumerState<PartyScreen> {
   final _searchController = TextEditingController();
   List<Map<String, dynamic>> _searchResults = [];
   List<Map<String, dynamic>> _partyMembers = [];
@@ -18,6 +20,11 @@ class _PartyScreenState extends State<PartyScreen> {
   bool _isSearching = false;
   bool _isLoadingParty = true;
   String? _currentUserId;
+
+  // Spam-guard: tracks user IDs that already have a pending request sent
+  final Set<String> _pendingRequestsSent = {};
+  // Tracks which user ID is currently being sent (in-flight)
+  String? _sendingRequestTo;
 
   @override
   void initState() {
@@ -118,20 +125,121 @@ class _PartyScreenState extends State<PartyScreen> {
   }
 
   Future<void> _sendFriendRequest(String targetUserId) async {
-    // Since there's no explicit friends/requests table in the schema,
-    // we'll send a party invite by adding to the party
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Invite sent to user!')),
+    // Guard: already sent or currently in-flight
+    if (_pendingRequestsSent.contains(targetUserId) || _sendingRequestTo == targetUserId) return;
+
+    setState(() => _sendingRequestTo = targetUserId);
+
+    try {
+      await SocialService.sendFriendRequest(targetUserId);
+      if (mounted) {
+        setState(() {
+          _pendingRequestsSent.add(targetUserId);
+          _sendingRequestTo = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Friend request sent!')),
+        );
+      }
+    } on PostgrestException catch (e) {
+      if (mounted) {
+        setState(() => _sendingRequestTo = null);
+        // Code 23505 = unique_violation: request already exists
+        final message = e.code == '23505'
+            ? 'You already sent a request to this user.'
+            : 'Failed to send request: ${e.message}';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        // Mark as pending so the button reflects reality
+        if (e.code == '23505') setState(() => _pendingRequestsSent.add(targetUserId));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _sendingRequestTo = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send request: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildFriendButton(String userId) {
+    final isSending = _sendingRequestTo == userId;
+    final isPending = _pendingRequestsSent.contains(userId);
+
+    final label = isSending ? 'Sending...' : isPending ? 'Pending ✓' : '+ Friend';
+    final bgColor = (isSending || isPending)
+        ? QuestlingsTheme.shadow.withValues(alpha: 0.3)
+        : QuestlingsTheme.primaryAction;
+
+    return GestureDetector(
+      onTap: (isSending || isPending) ? null : () => _sendFriendRequest(userId),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border.all(color: QuestlingsTheme.shadow, width: 2),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: (isSending || isPending) ? QuestlingsTheme.shadow : Colors.white,
+                fontSize: 12)),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final requestsAsync = ref.watch(friendRequestsProvider);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Friend Requests (Real-time) ──
+          requestsAsync.when(
+            data: (requests) {
+              if (requests.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Pending Requests', 
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: QuestlingsTheme.primaryAction)),
+                  const SizedBox(height: 8),
+                  ...requests.map((req) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: PixelContainer(
+                      padding: 12,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text('${req.senderUsername ?? 'Someone'} wants to be your friend!',
+                                style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.check, color: Colors.green),
+                            onPressed: () => SocialService.acceptFriendRequest(req),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, color: Colors.red),
+                            onPressed: () => SocialService.declineFriendRequest(req.id),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )),
+                  const SizedBox(height: 24),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (e, s) {
+              debugPrint('[FriendRequests] Stream error: $e');
+              return const SizedBox.shrink();
+            },
+          ),
+
           // ── Search Bar ──
           PixelContainer(
             padding: 0,
@@ -202,18 +310,7 @@ class _PartyScreenState extends State<PartyScreen> {
                         ),
                       ),
                       if (!isSelf)
-                        GestureDetector(
-                          onTap: () => _sendFriendRequest(user['id']),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: QuestlingsTheme.primaryAction,
-                              border: Border.all(color: QuestlingsTheme.shadow, width: 2),
-                            ),
-                            child: const Text('+ Friend',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
-                          ),
-                        ),
+                        _buildFriendButton(user['id'] as String),
                     ],
                   ),
                 ),
