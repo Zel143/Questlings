@@ -26,7 +26,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _exp = 120;
   int _maxExp = 200;
 
-  // Two separate lists for quests
   List<Map<String, dynamic>> _activeQuests = [];
   List<Map<String, dynamic>> _completedQuests = [];
 
@@ -42,13 +41,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _saveQuests() async {
     try {
       final file = await _getQuestsFile();
+      // Remove 'expColor' from all quests – Color objects cannot be JSON encoded
+      final cleanActive = _activeQuests.map((q) {
+        final copy = Map<String, dynamic>.from(q);
+        copy.remove('expColor');
+        return copy;
+      }).toList();
+      final cleanCompleted = _completedQuests.map((q) {
+        final copy = Map<String, dynamic>.from(q);
+        copy.remove('expColor');
+        return copy;
+      }).toList();
+      
       final data = {
-        'activeQuests': _activeQuests,
-        'completedQuests': _completedQuests,
+        'activeQuests': cleanActive,
+        'completedQuests': cleanCompleted,
       };
       await file.writeAsString(jsonEncode(data));
+      debugPrint('✅ Quests saved: ${_activeQuests.length} active, ${_completedQuests.length} completed');
     } catch (e) {
-      debugPrint('Error saving quests: $e');
+      debugPrint('❌ Error saving quests: $e');
     }
   }
 
@@ -62,9 +74,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _activeQuests = List<Map<String, dynamic>>.from(data['activeQuests'] ?? []);
           _completedQuests = List<Map<String, dynamic>>.from(data['completedQuests'] ?? []);
         });
+        debugPrint('✅ Quests loaded: ${_activeQuests.length} active, ${_completedQuests.length} completed');
+      } else {
+        debugPrint('ℹ️ No existing quests file, starting fresh');
       }
     } catch (e) {
-      debugPrint('Error loading quests: $e');
+      debugPrint('❌ Error loading quests: $e');
     }
   }
 
@@ -74,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _completeQuestStep(int index, String? currentQuestlingType) {
     final quest = _activeQuests[index];
-    if (quest['isDone']) return; // Should never happen but safety
+    if (quest['isDone']) return;
 
     final isTypeMatch = quest['category'] != null && quest['category'] == currentQuestlingType;
     final baseExp = quest['expReward'] as int;
@@ -85,11 +100,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         quest['progress'] = (quest['progress'] as int) + 1;
 
         if (quest['progress'] >= quest['maxProgress']) {
-          // Quest fully completed → move to completed list after dialog
           quest['isDone'] = true;
           _showCompletionDialog(quest, finalExp, isTypeMatch, index);
         } else {
-          // Just increment progress
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Progress updated: ${quest['progress']}/${quest['maxProgress']}'),
@@ -100,7 +113,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _saveQuests(); // persist progress
         }
       } else {
-        // Single‑step quest → complete immediately
         quest['isDone'] = true;
         _showCompletionDialog(quest, finalExp, isTypeMatch, index);
       }
@@ -169,15 +181,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       // Move completed quest from active to completed (limit to 10)
       final completedQuest = _activeQuests.removeAt(questIndex);
-      // Remove 'isDone' flag (not needed anymore) and add a completion timestamp
       completedQuest.remove('isDone');
       completedQuest['completedAt'] = DateTime.now().toIso8601String();
-      _completedQuests.insert(0, completedQuest); // latest first
+      _completedQuests.insert(0, completedQuest);
       if (_completedQuests.length > 10) {
         _completedQuests.removeLast();
       }
     });
-    _saveQuests(); // persist both lists
+    _saveQuests();
   }
 
   void _showAddQuestDialog() {
@@ -336,11 +347,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     'progress': 0,
                     'maxProgress': progressSteps,
                     'isDone': false,
-                    'expColor': QuestlingsTheme.surface,
                     'category': selectedCategory,
                   });
                 });
-                _saveQuests();
+                _saveQuests(); // FIX: ensure saving after adding
                 Navigator.of(context).pop();
               },
               child: const Text('Add Quest', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -385,7 +395,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
       CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
     );
-    _loadProfile();
+    _loadProfileAndQuests(); // FIX: combined loading
   }
 
   @override
@@ -394,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfileAndQuests() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       if (mounted) context.go('/login');
@@ -428,15 +438,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (profileResponse['user_questlings'] != null) {
           _questling = profileResponse['user_questlings'];
         }
-        _isLoading = false;
       });
 
-      // Load local quests after profile is ready
+      // Load quests BEFORE hiding loader
       await _loadQuests();
-      if (mounted) setState(() {});
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading profile: $e');
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -578,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
           const SizedBox(height: 24),
 
-          // ----- Active Quests Section -----
+          // Active Quests
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -640,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
           const SizedBox(height: 32),
 
-          // ----- Completed Quests Section (max 10) -----
+          // Completed Quests
           if (_completedQuests.isNotEmpty) ...[
             const Row(
               children: [
