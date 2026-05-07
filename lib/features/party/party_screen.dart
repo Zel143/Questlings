@@ -43,45 +43,55 @@ class _PartyScreenState extends ConsumerState<PartyScreen> with SingleTickerProv
 
   Future<void> _loadParty() async {
     if (_currentUserId == null) return;
-    if (mounted) setState(() { _isLoadingParty = true; _party = null; _partyMembers = []; });
+    if (mounted) setState(() {
+      _isLoadingParty = true;
+      _party = null;
+      _partyMembers = [];
+    });
     try {
-      final userData = await Supabase.instance.client
-          .from('users').select('party_id').eq('id', _currentUserId!).maybeSingle();
-      
-      if (userData == null || userData['party_id'] == null) {
+      // 1. Find the party that the current user belongs to via party_members
+      final memberEntry = await Supabase.instance.client
+          .from('party_members')
+          .select('party_id')
+          .eq('user_id', _currentUserId!)
+          .maybeSingle();
+
+      if (memberEntry == null) {
+        // User is not in any party
         if (mounted) setState(() => _isLoadingParty = false);
         return;
       }
 
-      final partyId = userData['party_id'];
-      
-      // Fetch party details and members with their profiles
-      final partyFuture = Supabase.instance.client
-          .from('parties').select('*').eq('id', partyId).maybeSingle();
-      final membersFuture = Supabase.instance.client
+      final partyId = memberEntry['party_id'] as String;
+
+      // 2. Fetch party details (name, etc.)
+      final partyData = await Supabase.instance.client
+          .from('parties')
+          .select('*')
+          .eq('id', partyId)
+          .maybeSingle();
+
+      // 3. Fetch all members of this party (join with users to get usernames and levels)
+      final membersData = await Supabase.instance.client
           .from('party_members')
           .select('user:users(id, username, level)')
           .eq('party_id', partyId);
 
-      final partyData = await partyFuture;
-      final membersData = await membersFuture;
+      // Extract the nested user objects
+      final List<Map<String, dynamic>> memberDetails = membersData
+          .map((m) => Map<String, dynamic>.from(m['user'] as Map))
+          .toList();
 
-      if (partyData != null) {
-        final List<Map<String, dynamic>> memberDetails = membersData
-            .map((m) => m['user'] as Map<String, dynamic>)
-            .toList();
-            
-        setState(() { 
-          _party = partyData; 
-          _partyMembers = memberDetails; 
-          _isLoadingParty = false; 
+      if (mounted) {
+        setState(() {
+          _party = partyData;
+          _partyMembers = memberDetails;
+          _isLoadingParty = false;
         });
-      } else {
-        setState(() => _isLoadingParty = false);
       }
     } catch (e) {
       debugPrint('Error loading party: $e');
-      setState(() => _isLoadingParty = false);
+      if (mounted) setState(() => _isLoadingParty = false);
     }
   }
 
