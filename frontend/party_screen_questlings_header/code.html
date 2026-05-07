@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Questlings - Party Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&amp;family=Spline+Sans:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2f312c",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#41493e",
+                        "secondary-container": "#8dcefe",
+                        "surface-container-low": "#f4f4ec",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#584324",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#eeeee6",
+                        "surface-bright": "#fafaf2",
+                        "tertiary-fixed": "#feddb3",
+                        "secondary-fixed": "#c9e6ff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#005880",
+                        "on-background": "#1a1c18",
+                        "on-tertiary-container": "#675030",
+                        "tertiary-fixed-dim": "#e1c299",
+                        "secondary-fixed-dim": "#8dcefe",
+                        "outline": "#717a6d",
+                        "surface-container-high": "#e8e9e1",
+                        "primary-container": "#98d98e",
+                        "tertiary": "#725a39",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed": "#001e2f",
+                        "on-primary-container": "#246024",
+                        "surface-dim": "#dadad3",
+                        "error": "#ba1a1a",
+                        "secondary": "#13648f",
+                        "on-tertiary-fixed": "#281801",
+                        "on-primary-fixed-variant": "#155217",
+                        "on-surface": "#1a1c18",
+                        "primary-fixed-dim": "#96d68c",
+                        "on-primary-fixed": "#002202",
+                        "background": "#fafaf2",
+                        "inverse-on-surface": "#f1f1e9",
+                        "inverse-primary": "#96d68c",
+                        "surface-variant": "#e3e3db",
+                        "primary-fixed": "#b1f3a6",
+                        "surface-container-highest": "#e3e3db",
+                        "surface": "#fafaf2",
+                        "outline-variant": "#c1c9bb",
+                        "on-secondary-fixed-variant": "#004b6f",
+                        "tertiary-container": "#e3c49b",
+                        "surface-tint": "#2f6b2d",
+                        "primary": "#2f6b2d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "panel-padding": "12px",
+                        "gutter": "16px",
+                        "tile-unit": "8px",
+                        "margin-edge": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Lexend"],
+                        "headline-md": ["Spline Sans"],
+                        "body-md": ["Lexend"],
+                        "pixel-display": ["Lexend"],
+                        "label-bold": ["Lexend"],
+                        "headline-lg": ["Spline Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "pixel-display": ["18px", { "lineHeight": "24px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "label-bold": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Subtle pixel pattern for empty space to reinforce retro vibe */
+        .bg-dither {
+            background-image: radial-gradient(#c1c9bb 1px, transparent 1px);
+            background-size: 8px 8px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md antialiased min-h-screen pb-24 pt-16 bg-dither">
+<!-- TopAppBar Shared Component -->
+<header class="bg-surface border-b-2 border-on-surface shadow-[0px_2px_0px_0px_rgba(26,28,24,1)] fixed top-0 w-full z-40 h-16 flex items-center justify-between px-margin-edge">
+<div class="flex items-center gap-4">
+<h1 class="font-pixel-display text-pixel-display text-on-surface tracking-widest">QUESTLINGS</h1>
+</div>
+<button aria-label="Settings" class="hover:bg-surface-container-high transition-colors p-2 active:translate-y-[2px]">
+<span class="material-symbols-outlined text-on-surface">settings</span>
+</button>
+</header>
+<main class="max-w-4xl mx-auto mt-6">
+<!-- Page Section Header -->
+<div class="px-margin-edge mb-4 flex justify-between items-end"><h2 class="font-headline-lg text-headline-lg text-on-surface border-b-4 border-on-surface inline-block pb-1">Online Friends</h2><span class="font-pixel-display text-body-md text-on-surface-variant bg-surface-container border-2 border-on-surface px-2 py-1 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">4 / 50</span></div>
+<!-- Party Grid - Bento Style -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-gutter px-margin-edge mb-8"><!-- Friend Card 1 -->
+<div class="bg-surface-container-low border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] flex flex-col gap-3 relative group">
+<div class="flex gap-3">
+<div class="w-16 h-16 border-2 border-on-surface bg-primary-container flex-shrink-0 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">
+<span class="material-symbols-outlined text-4xl">face</span>
+</div>
+<div class="flex-grow flex flex-col justify-center">
+<span class="font-headline-md text-body-lg text-on-surface leading-tight">PixelMaster</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Lv. 42</span>
+</div>
+</div>
+<div class="border-t-2 border-surface-variant pt-2">
+<span class="font-label-bold text-label-bold text-secondary uppercase">Guild: </span>
+<span class="font-body-md text-on-surface">Dragon Slayers</span>
+</div>
+</div>
+<!-- Friend Card 2 -->
+<div class="bg-surface-container-low border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] flex flex-col gap-3 relative group">
+<div class="flex gap-3">
+<div class="w-16 h-16 border-2 border-on-surface bg-secondary-container flex-shrink-0 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">
+<span class="material-symbols-outlined text-4xl">person</span>
+</div>
+<div class="flex-grow flex flex-col justify-center">
+<span class="font-headline-md text-body-lg text-on-surface leading-tight">GhostBuster</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Lv. 38</span>
+</div>
+</div>
+<div class="border-t-2 border-surface-variant pt-2">
+<span class="font-label-bold text-label-bold text-secondary uppercase">Clan: </span>
+<span class="font-body-md text-on-surface">Shadow Stalkers</span>
+</div>
+</div>
+<!-- Friend Card 3 -->
+<div class="bg-surface-container-low border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] flex flex-col gap-3 relative group">
+<div class="flex gap-3">
+<div class="w-16 h-16 border-2 border-on-surface bg-tertiary-container flex-shrink-0 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">
+<span class="material-symbols-outlined text-4xl">sentiment_satisfied</span>
+</div>
+<div class="flex-grow flex flex-col justify-center">
+<span class="font-headline-md text-body-lg text-on-surface leading-tight">AquaQueen</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Lv. 55</span>
+</div>
+</div>
+<div class="border-t-2 border-surface-variant pt-2">
+<span class="font-label-bold text-label-bold text-secondary uppercase">Guild: </span>
+<span class="font-body-md text-on-surface">Ocean Guardians</span>
+</div>
+</div>
+<!-- Friend Card 4 -->
+<div class="bg-surface-container-low border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] flex flex-col gap-3 relative group">
+<div class="flex gap-3">
+<div class="w-16 h-16 border-2 border-on-surface bg-surface-variant flex-shrink-0 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">
+<span class="material-symbols-outlined text-4xl">mood</span>
+</div>
+<div class="flex-grow flex flex-col justify-center">
+<span class="font-headline-md text-body-lg text-on-surface leading-tight">Z-Volt</span>
+<span class="font-label-bold text-label-bold text-on-surface-variant">Lv. 29</span>
+</div>
+</div>
+<div class="border-t-2 border-surface-variant pt-2">
+<span class="font-label-bold text-label-bold text-secondary uppercase">Status: </span>
+<span class="font-body-md text-on-surface">Unclanned</span>
+</div>
+</div>
+<!-- Invite Slot -->
+<div class="bg-surface-container border-2 border-dashed border-outline p-panel-padding flex flex-col items-center justify-center gap-2 opacity-70 hover:opacity-100 transition-opacity cursor-pointer min-h-[120px]">
+<span class="material-symbols-outlined text-outline text-4xl">group_add</span>
+<span class="font-label-bold text-label-bold text-outline uppercase tracking-wider">Invite Friends</span>
+</div></div>
+<!-- Party Goals / Boss Battle Panel -->
+<div class="px-margin-edge mb-8">
+<div class="bg-tertiary-container border-2 border-on-surface p-panel-padding shadow-[6px_6px_0px_0px_rgba(26,28,24,1)] relative overflow-hidden">
+<!-- Decorative background elements -->
+<div class="absolute -right-10 -bottom-10 opacity-20 transform rotate-12">
+<span class="material-symbols-outlined text-[120px] text-on-tertiary-container">swords</span>
+</div>
+<div class="relative z-10"><div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-on-tertiary-container">military_tech</span>
+<h3 class="font-pixel-display text-headline-md text-on-tertiary-container uppercase tracking-wide">Guild Mission</h3>
+</div>
+<p class="font-body-md text-body-md text-on-tertiary-container mb-4">Work with your guild mates to complete the weekly raid and earn legendary rewards!</p>
+<div class="bg-surface-bright border-2 border-on-surface p-3 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)]">
+<div class="flex justify-between items-end mb-2">
+<span class="font-label-bold text-label-bold text-on-surface">Guild Progress</span>
+<span class="font-pixel-display text-body-md text-primary">750 / 1000 PT</span>
+</div>
+<div class="w-full h-8 border-2 border-on-surface bg-surface-variant flex relative overflow-hidden">
+<div class="h-full bg-primary border-r-2 border-on-surface z-10 transition-all duration-500" style="width: 75%;"></div>
+</div>
+<div class="flex justify-between items-center mt-3 pt-3 border-t-2 border-outline-variant">
+<span class="font-body-md text-body-md text-on-surface">Your Points:</span>
+<span class="font-pixel-display text-pixel-display text-secondary">+125</span>
+</div>
+</div></div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Shared Component -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 h-20 bg-surface border-t-2 border-on-surface pb-safe"><!-- Home -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 w-16 hover:bg-surface-container-high transition-colors active:translate-y-[2px]">
+<span class="material-symbols-outlined text-[24px]">home</span>
+<span class="font-label-bold text-[10px] mt-1">Home</span>
+</button>
+<!-- Inventory -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 w-16 hover:bg-surface-container-high transition-colors active:translate-y-[2px]">
+<span class="material-symbols-outlined text-[24px]">inventory_2</span>
+<span class="font-label-bold text-[10px] mt-1">Inventory</span>
+</button>
+<!-- ACTIVE: Party -->
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container border-2 border-on-surface p-2 w-16 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] active:shadow-none active:translate-y-[2px]">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">groups</span>
+<span class="font-label-bold text-[10px] mt-1">Party</span>
+</button>
+<!-- Shop -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 w-16 hover:bg-surface-container-high transition-colors active:translate-y-[2px]">
+<span class="material-symbols-outlined text-[24px]">storefront</span>
+<span class="font-label-bold text-[10px] mt-1">Shop</span>
+</button></nav>
+</body></html>

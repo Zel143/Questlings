@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Bag - Questlings Inventory</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&amp;family=Spline+Sans:wght@700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2f312c",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "on-surface-variant": "#41493e",
+                        "secondary-container": "#8dcefe",
+                        "surface-container-low": "#f4f4ec",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed-variant": "#584324",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#eeeee6",
+                        "surface-bright": "#fafaf2",
+                        "tertiary-fixed": "#feddb3",
+                        "secondary-fixed": "#c9e6ff",
+                        "on-primary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#005880",
+                        "on-background": "#1a1c18",
+                        "on-tertiary-container": "#675030",
+                        "tertiary-fixed-dim": "#e1c299",
+                        "secondary-fixed-dim": "#8dcefe",
+                        "outline": "#717a6d",
+                        "surface-container-high": "#e8e9e1",
+                        "primary-container": "#98d98e",
+                        "tertiary": "#725a39",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed": "#001e2f",
+                        "on-primary-container": "#246024",
+                        "surface-dim": "#dadad3",
+                        "error": "#ba1a1a",
+                        "secondary": "#13648f",
+                        "on-tertiary-fixed": "#281801",
+                        "on-primary-fixed-variant": "#155217",
+                        "on-surface": "#1a1c18",
+                        "primary-fixed-dim": "#96d68c",
+                        "on-primary-fixed": "#002202",
+                        "background": "#fafaf2",
+                        "inverse-on-surface": "#f1f1e9",
+                        "inverse-primary": "#96d68c",
+                        "surface-variant": "#e3e3db",
+                        "primary-fixed": "#b1f3a6",
+                        "surface-container-highest": "#e3e3db",
+                        "surface": "#fafaf2",
+                        "outline-variant": "#c1c9bb",
+                        "on-secondary-fixed-variant": "#004b6f",
+                        "tertiary-container": "#e3c49b",
+                        "surface-tint": "#2f6b2d",
+                        "primary": "#2f6b2d"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "panel-padding": "12px",
+                        "gutter": "16px",
+                        "tile-unit": "8px",
+                        "margin-edge": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Lexend"],
+                        "headline-md": ["Spline Sans"],
+                        "body-md": ["Lexend"],
+                        "pixel-display": ["Lexend"],
+                        "label-bold": ["Lexend"],
+                        "headline-lg": ["Spline Sans"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "pixel-display": ["18px", { "lineHeight": "24px", "letterSpacing": "0.1em", "fontWeight": "700" }],
+                        "label-bold": ["12px", { "lineHeight": "16px", "fontWeight": "600" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Ensures pixel art rendering for generated retro images */
+        .pixelated {
+            image-rendering: pixelated;
+        }
+        /* Hide scrollbar for a cleaner handheld look */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen pb-[80px] pt-[64px] font-body-md select-none">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface-dim border-b-2 border-on-surface dark:border-on-surface-variant shadow-[0px_2px_0px_0px_rgba(26,28,24,1)] flex items-center justify-between px-margin-edge h-16 w-full fixed top-0 z-40">
+<h1 class="font-pixel-display text-pixel-display text-on-surface dark:text-inverse-on-surface tracking-widest uppercase">Questlings</h1>
+<button class="text-on-surface hover:bg-surface-container-high transition-colors active:translate-y-[2px] active:shadow-none p-1 rounded-sm flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+</button> <!-- Spacer for centering -->
+</header>
+<!-- Main Content Canvas -->
+<main class="max-w-md mx-auto p-gutter space-y-gutter">
+<!-- Category Tabs -->
+<nav aria-label="Inventory Categories" class="flex gap-tile-unit">
+<!-- Inactive Tab -->
+<button class="flex-1 bg-surface-container text-on-surface-variant border-2 border-on-surface font-label-bold text-label-bold py-2 px-1 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all uppercase tracking-wide rounded-sm">
+                Monsters
+            </button>
+<!-- Active Tab -->
+<button class="flex-1 bg-primary-container text-on-primary-container border-2 border-on-surface font-label-bold text-label-bold py-2 px-1 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] translate-y-[2px] translate-x-[2px] shadow-none uppercase tracking-wide rounded-sm relative z-10 ring-2 ring-primary">
+                Items
+            </button>
+<!-- Inactive Tab -->
+<button class="flex-1 bg-surface-container text-on-surface-variant border-2 border-on-surface font-label-bold text-label-bold py-2 px-1 shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] active:translate-y-[2px] active:translate-x-[2px] active:shadow-none transition-all uppercase tracking-wide rounded-sm">
+                Gear
+            </button>
+</nav>
+<!-- PC Box Grid Container -->
+<section class="bg-surface-container-low border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] rounded-sm relative">
+<!-- Box Header / Capacity -->
+<div class="flex justify-between items-center border-b-2 border-on-surface pb-2 mb-3">
+<h2 class="font-pixel-display text-body-md text-on-surface tracking-widest">BOX 1</h2>
+<span class="font-label-bold text-label-bold text-on-surface-variant bg-surface px-2 py-1 border-2 border-on-surface">14 / 30</span>
+</div>
+<!-- Grid -->
+<div class="grid grid-cols-4 sm:grid-cols-5 gap-tile-unit">
+<!-- Active Selected Slot -->
+<button class="aspect-square bg-surface-bright border-2 border-primary ring-2 ring-primary ring-offset-1 ring-offset-surface-container-low shadow-[2px_2px_0px_0px_rgba(47,107,45,1)] flex items-center justify-center p-1 relative rounded-sm group overflow-hidden">
+<!-- Retro Selection Cursor (Simulated via outline) -->
+<div class="absolute inset-0 bg-primary-container opacity-30 z-0"></div>
+<img alt="Health Potion" class="w-full h-full object-contain pixelated relative z-10 drop-shadow-md" data-alt="A pixel art style icon of a rounded glass flask filled with vibrant red liquid, resembling a classic health potion from a 32-bit handheld game. The image has crisp, aliased edges, high contrast shading, and is set against a plain background, perfectly fitting a retro early 2000s inventory screen aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzPXynuPXT11X3YLFtv-MaPnleoPw8U_6nxR3n8OemHpcbvB0GZBad6Tu1y6dUlsSZL0n2AXY3SJE-Qgtn90drDFtfMUc6sJc49-GCc2bUoIv8bDXe7tU3s-SJ5VO18uoYcRHrKF0bqDA9jRligqXVNl7IVqdreql48geY_O4Ru0BEFcOaxcZOO75IekfuCtFEie5heWBOcVcYRFEJJveLb9CdXFXtte1wpPvLQbmZPq0RaxS2Q3Ttb3G9Hy_3GHgjlLxVyEukBlQ"/>
+<span class="absolute bottom-0 right-0 bg-surface border-t-2 border-l-2 border-on-surface px-1 font-label-bold text-[10px] leading-tight text-on-surface z-20">x5</span>
+</button>
+<!-- Normal Slot -->
+<button class="aspect-square bg-surface border-2 border-on-surface shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] hover:bg-surface-bright hover:-translate-y-[1px] hover:shadow-[2px_3px_0px_0px_rgba(26,28,24,1)] transition-all flex items-center justify-center p-1 relative rounded-sm active:translate-y-[2px] active:translate-x-[2px] active:shadow-none">
+<img alt="Evolution Stone" class="w-full h-full object-contain pixelated drop-shadow-md" data-alt="A 32-bit style pixel art illustration of a jagged, glowing blue crystal. It serves as an 'Evolution Stone' item in a retro handheld game interface. The gemstone features sharp, geometric facets with bright cyan highlights and deep navy shadows, isolated on a simple background to emphasize its digital, chunky texture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4BfAlqKuZ7kjsxYgp3A2DRBOm40FgQ2RM6Xs6DmFLw3J15Y70N5qkj0xgIQ_FeXrH_JTdBFWO_NkoiijOh1r7uSN4XIhbHM82Z-g_H9YkiyqV5glPeMn3hn7xnxpcfQL43opCD6DekpUfTtzcooI_Bt8G0umHpZYZJv3571DqPsd3hes2MwvU_utOIL73B_qpejPKXOsSMpBl1G1LhoHBvnhriSeKIruRoH8pIklKo8hAhAjua4QAhScRqK3fH3l9d8x3MysPhyw"/>
+<span class="absolute bottom-0 right-0 bg-surface border-t-2 border-l-2 border-on-surface px-1 font-label-bold text-[10px] leading-tight text-on-surface">x1</span>
+</button>
+<!-- Normal Slot -->
+<button class="aspect-square bg-surface border-2 border-on-surface shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] hover:bg-surface-bright hover:-translate-y-[1px] hover:shadow-[2px_3px_0px_0px_rgba(26,28,24,1)] transition-all flex items-center justify-center p-1 relative rounded-sm active:translate-y-[2px] active:translate-x-[2px] active:shadow-none">
+<img alt="Pecha Berry" class="w-full h-full object-contain pixelated drop-shadow-md" data-alt="A pixel art rendering of a cluster of small, bright pink berries attached to a single green stem. Designed for a retro 2000s handheld RPG inventory. The berries have minimal shading, utilizing a limited color palette with distinct blocky outlines, capturing the nostalgic feel of early digital gaming items." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJimA-si-tOGYUYZkC6DTaKVcwm_E3D2ShiqorELrhsSOcVGgMEqY5AyRHw6aL0s9kj9vjhzLNwNqx85_jmhs7ud6Wn4a6YZCtWedHzUmqhDUiPBqfRHdzfzCA2mwS9R_5GAOAa_A9mwdnywSl0Vckt_P8xbSdM2OhCfEGXHEzbQl3dtd-68ZeG8c-q6Ua5kpdCusCbgEPA6WJpm_MOIOk9sTuUNCWHeJgfF8ZssjX5BfvU2OkgtkyU0OMavVGsUifK76skWdIrow"/>
+<span class="absolute bottom-0 right-0 bg-surface border-t-2 border-l-2 border-on-surface px-1 font-label-bold text-[10px] leading-tight text-on-surface">x12</span>
+</button>
+<!-- Normal Slot -->
+<button class="aspect-square bg-surface border-2 border-on-surface shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] hover:bg-surface-bright hover:-translate-y-[1px] hover:shadow-[2px_3px_0px_0px_rgba(26,28,24,1)] transition-all flex items-center justify-center p-1 relative rounded-sm active:translate-y-[2px] active:translate-x-[2px] active:shadow-none">
+<img alt="Escape Rope" class="w-full h-full object-contain pixelated drop-shadow-md" data-alt="A chunky, pixelated illustration of an old, worn scroll tied with a red ribbon. Created for a retro RPG item menu. The parchment has yellowed edges and simple, high-contrast dark brown outlines, strictly adhering to a 32-bit graphical limitation style commonly seen in early handheld gaming devices." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQm_gjM54tTfbz4JZ8MHzz66Iy6-4uMTiz_19xmuWE--WUYHIyshVTnM7snTB0xFsPnvbYdXTvEsF8tj4UrE9HR7R3C-PnXPad30bsl3BIg-cSF0WqT548bJmIQo7Ru6PQPmAI-aft0EooxlubphArsmy8uMwXTIeFj8O4f_C8ulNErj5UaQvEj036jOcbeALPpS6td9Yeb60pCj8_nLJW0ivFRZzxNaE1KnyZJznNqunaAglX4BQK8HBaXUIOMOoigIiBxpMHSjM"/>
+<span class="absolute bottom-0 right-0 bg-surface border-t-2 border-l-2 border-on-surface px-1 font-label-bold text-[10px] leading-tight text-on-surface">x3</span>
+</button>
+<!-- Empty Slots to fill out grid -->
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+<div class="aspect-square bg-surface-variant border-2 border-outline-variant/30 flex items-center justify-center p-1 relative rounded-sm opacity-50"></div>
+</div>
+<!-- Scroll indicators (simulated) -->
+<div class="absolute right-0 top-1/2 transform -translate-y-1/2 -mr-3 flex flex-col gap-1">
+<div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[8px] border-b-on-surface opacity-50"></div>
+<div class="w-3 h-8 bg-surface-variant border-2 border-on-surface shadow-[1px_1px_0px_0px_rgba(26,28,24,1)]"></div>
+<div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-on-surface"></div>
+</div>
+</section>
+<!-- Item Detail Panel -->
+<section class="bg-surface-bright border-2 border-on-surface p-panel-padding shadow-[4px_4px_0px_0px_rgba(26,28,24,1)] flex gap-4 items-start rounded-sm">
+<!-- Icon Display -->
+<div class="w-16 h-16 border-2 border-on-surface bg-surface shadow-[2px_2px_0px_0px_rgba(26,28,24,1)] flex-shrink-0 flex items-center justify-center p-2 rounded-sm bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiPgo8cmVjdCB3aWR0aD0iOCIgaGVpZ2h0PSI4IiBmaWxsPSIjZjRmNGVjIiAvPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZThlOWUxIiAvPgo8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjZThlOWUxIiAvPgo8L3N2Zz4=')]"> <!-- Subtle checkerboard pattern -->
+<img alt="Health Potion" class="w-full h-full object-contain pixelated drop-shadow-lg" data-alt="A pixel art style icon of a rounded glass flask filled with vibrant red liquid, resembling a classic health potion from a 32-bit handheld game. The image has crisp, aliased edges, high contrast shading, and is set against a plain background, perfectly fitting a retro early 2000s inventory screen aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMCvOrmhOaHYhspxx33rGKGzuUPGodVf5PWXSZuAifEQhjhRoWanCwESOn4QqwFC36GwULiX8mINwm9EKth3J2Cvyl_VH0JusZDONXnaOxSU11Ml4T8gnWrn8buhiE6QJhiGHaAXR_7_Ebj2yLo8Epan9rKjwBmO2z7ATGAtnQbiMn1--AmgQKQoppu3TpM70cfvQIiyUz-lTQqvGj0Q-Pp0A0OUbvSp25RK__YLz3XXONCzUW21rLdKlXI02dWdsL0MyYGKJ4gcA"/>
+</div>
+<!-- Details -->
+<div class="flex-grow">
+<div class="flex justify-between items-baseline mb-1">
+<h3 class="font-pixel-display text-pixel-display text-on-surface uppercase tracking-wide">Red Potion</h3>
+<span class="font-label-bold text-label-bold text-tertiary-container border-b-2 border-tertiary-container/30">Use</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-snug">
+                    A medicinal brew that restores 50 HP to a single Monster. Smells faintly of bitter herbs and sweet berries.
+                </p>
+</div>
+</section>
+<!-- Action Bar (Discard/Sort) -->
+<div class="flex justify-between mt-2 px-1">
+<button class="font-label-bold text-label-bold text-error uppercase hover:underline underline-offset-4 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">delete</span> Trash
+            </button>
+<button class="font-label-bold text-label-bold text-secondary uppercase hover:underline underline-offset-4 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">sort</span> Sort
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-surface border-t-2 border-on-surface shadow-[0px_-2px_0px_0px_rgba(26,28,24,1)]"><!-- Home -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest active:translate-y-[2px] active:shadow-none transition-transform duration-75">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-bold text-label-bold">Home</span>
+</button>
+<!-- Inventory (Active) -->
+<button class="flex flex-col items-center justify-center p-2 hover:bg-surface-container-highest active:translate-y-[2px] active:shadow-none transition-transform duration-75 bg-primary-container text-on-primary-container border-2 border-on-surface">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span class="font-label-bold text-label-bold">Inventory</span>
+</button>
+<!-- Party -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest active:translate-y-[2px] active:shadow-none transition-transform duration-75">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">groups</span>
+<span class="font-label-bold text-label-bold">Party</span>
+</button>
+<!-- Shop -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant p-2 hover:bg-surface-container-highest active:translate-y-[2px] active:shadow-none transition-transform duration-75">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">storefront</span>
+<span class="font-label-bold text-label-bold">Shop</span>
+</button></nav>
+</body></html>
