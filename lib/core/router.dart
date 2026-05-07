@@ -128,10 +128,13 @@ final router = GoRouter(
 <<<<<<< Updated upstream
     final isLoggingIn = state.matchedLocation == '/login';
 
-    if (session == null && !isLoggingIn) {
+    // Not logged in -> login screen
+    if (session == null && state.matchedLocation != '/login') {
       return '/login';
     }
-    if (session != null && isLoggingIn) {
+
+    // Logged in but on login screen -> send to home
+    if (session != null && state.matchedLocation == '/login') {
       return '/';
     }
 =======

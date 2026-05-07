@@ -5,7 +5,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/pixel_button.dart';
-import '../../core/widgets/pixel_container.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -30,6 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _signInWithGoogle() async {
+    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
@@ -71,9 +71,23 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  /// Simple email format check before hitting the API.
+  bool _isValidEmail(String email) {
+    final regex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    return regex.hasMatch(email);
+  }
+
   Future<void> _sendOtp() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     if (email.isEmpty) return;
+
+    if (!_isValidEmail(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address.')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -102,6 +116,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _verifyOtp() async {
+    if (_isLoading) return;
     final otp = _otpController.text.trim();
     if (otp.isEmpty) return;
 
@@ -110,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
       await Supabase.instance.client.auth.verifyOTP(
         email: _userEmail,
         token: otp,
-        type: OtpType.magiclink,
+        type: OtpType.email,
       );
     } catch (error) {
       if (mounted) {

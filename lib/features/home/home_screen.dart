@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/widgets/pixel_container.dart';
 import '../../core/theme.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-<<<<<<< Updated upstream
-=======
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
@@ -120,8 +120,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   @override
->>>>>>> Stashed changes
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_userProfile == null) {
+      return const Center(child: Text('Error loading profile.'));
+    }
+
+    final username = _userProfile!['username'] ?? 'Unknown';
+    final userLevel = _userProfile!['level'] ?? 1;
+    final questlingData = _questling?['questling_dictionary'];
+    final questlingNickname = _questling?['nickname'] ?? questlingData?['name'] ?? 'Unknown Egg';
+    final questlingType = questlingData?['elemental_type'] ?? 'Unknown';
+    final spritePath = _getSpritePath();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -137,31 +151,61 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     alignment: Alignment.bottomRight,
                     children: [
                       Container(
-                        width: 120,
-                        height: 120,
+                        width: 140,
+                        height: 140,
                         decoration: BoxDecoration(
                           color: QuestlingsTheme.background,
                           border: Border.all(color: QuestlingsTheme.shadow, width: 2),
                         ),
-                        // Image placeholder
+                        child: AnimatedBuilder(
+                          animation: _idleAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _idleAnimation.value),
+                              child: child,
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Image.asset(
+                              spritePath,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.none, // Keep pixel art crisp
+                            ),
+                          ),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         color: QuestlingsTheme.brownAction,
-                        child: const Text(
-                          'LVL 5',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        child: Text(
+                          'LVL $userLevel',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Bulba', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-                    Text('Grass Type', style: TextStyle(color: QuestlingsTheme.blueAction, fontWeight: FontWeight.bold)),
+                    Text(questlingNickname, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _getTypeColor(questlingType).withValues(alpha: 0.15),
+                        border: Border.all(color: _getTypeColor(questlingType), width: 1.5),
+                      ),
+                      child: Text(
+                        '$questlingType Type',
+                        style: TextStyle(
+                          color: _getTypeColor(questlingType),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 const Divider(color: QuestlingsTheme.shadow, thickness: 2),
