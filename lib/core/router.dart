@@ -5,11 +5,8 @@ import '../features/inventory/inventory_screen.dart';
 import '../features/party/party_screen.dart';
 import '../features/shop/shop_screen.dart';
 import '../features/auth/auth_screen.dart';
-<<<<<<< Updated upstream
-=======
 import '../features/auth/username_screen.dart';
 import '../features/auth/setup_screen.dart';
->>>>>>> Stashed changes
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'theme.dart';
@@ -125,19 +122,6 @@ final router = GoRouter(
   refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
-<<<<<<< Updated upstream
-    final isLoggingIn = state.matchedLocation == '/login';
-
-    // Not logged in -> login screen
-    if (session == null && state.matchedLocation != '/login') {
-      return '/login';
-    }
-
-    // Logged in but on login screen -> send to home
-    if (session != null && state.matchedLocation == '/login') {
-      return '/';
-    }
-=======
 
     // Not logged in -> login screen
     if (session == null && state.matchedLocation != '/login') {
@@ -149,7 +133,6 @@ final router = GoRouter(
       return '/';
     }
 
->>>>>>> Stashed changes
     return null;
   },
   routes: [
@@ -157,8 +140,6 @@ final router = GoRouter(
       path: '/login',
       builder: (context, state) => const AuthScreen(),
     ),
-<<<<<<< Updated upstream
-=======
     GoRoute(
       path: '/username',
       builder: (context, state) => const UsernameScreen(),
@@ -167,7 +148,6 @@ final router = GoRouter(
       path: '/setup',
       builder: (context, state) => const SetupScreen(),
     ),
->>>>>>> Stashed changes
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return MainLayout(navigationShell: navigationShell);
