@@ -18,6 +18,100 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _idleController;
   late Animation<double> _idleAnimation;
 
+  int _hp = 45;
+  int _maxHp = 50;
+  int _exp = 120;
+  int _maxExp = 200;
+
+  final List<Map<String, dynamic>> _quests = [
+    {
+      'title': 'Hydration Potion',
+      'description': 'Drink 8 glasses of water today to restore vitality.',
+      'expReward': 15,
+      'progress': 3,
+      'maxProgress': 8,
+      'isDone': false,
+      'expColor': const Color(0xFF6EABDE),
+      'category': 'Sports',
+    },
+    {
+      'title': 'Morning Patrol',
+      'description': 'Complete a 20-minute walk outside.',
+      'expReward': 20,
+      'progress': 1,
+      'maxProgress': 1,
+      'isDone': true,
+      'expColor': null,
+      'category': 'Sports',
+    },
+    {
+      'title': 'Study Grimoire',
+      'description': 'Read 15 pages of any non-fiction book.',
+      'expReward': 25,
+      'progress': 0,
+      'maxProgress': 1,
+      'isDone': false,
+      'expColor': QuestlingsTheme.surface,
+      'category': 'School',
+    },
+    {
+      'title': 'Save Data',
+      'description': 'Write one sentence in your daily journal.',
+      'expReward': 10,
+      'progress': 0,
+      'maxProgress': 1,
+      'isDone': false,
+      'expColor': QuestlingsTheme.surface,
+      'category': 'Tech',
+    },
+    {
+      'title': 'Sketch Practice',
+      'description': 'Draw for 15 minutes.',
+      'expReward': 15,
+      'progress': 0,
+      'maxProgress': 1,
+      'isDone': false,
+      'expColor': QuestlingsTheme.surface,
+      'category': 'Art',
+    },
+  ];
+
+  void _completeQuestStep(int index, String? currentQuestlingType) {
+    if (_quests[index]['isDone']) return;
+
+    setState(() {
+      final quest = _quests[index];
+      
+      if (quest['maxProgress'] != null && quest['maxProgress'] > 1) {
+        quest['progress'] = (quest['progress'] as int) + 1;
+        if (quest['progress'] >= quest['maxProgress']) {
+          quest['isDone'] = true;
+          _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
+        }
+      } else {
+        quest['isDone'] = true;
+        quest['progress'] = 1;
+        _awardRewards(quest['expReward'], quest['category'], currentQuestlingType);
+      }
+    });
+  }
+
+  void _awardRewards(int baseExp, String? category, String? currentQuestlingType) {
+    final isTypeMatch = category != null && category == currentQuestlingType;
+    final finalExp = isTypeMatch ? (baseExp * 1.1).round() : baseExp;
+
+    _exp += finalExp;
+    
+    if (_exp >= _maxExp) {
+      _exp = _exp - _maxExp;
+      _maxExp = (_maxExp * 1.2).round();
+      _hp = _maxHp;
+    } else {
+      _hp += 2;
+      if (_hp > _maxHp) _hp = _maxHp;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -210,9 +304,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 const Divider(color: QuestlingsTheme.shadow, thickness: 2),
                 const SizedBox(height: 8),
-                _buildStatBar('HP', '45/50', QuestlingsTheme.primaryAction, 0.9),
+                _buildStatBar('HP', '$_hp/$_maxHp', QuestlingsTheme.primaryAction, _hp / _maxHp),
                 const SizedBox(height: 8),
-                _buildStatBar('EXP', '120/200', QuestlingsTheme.surface, 0.6),
+                _buildStatBar('EXP', '$_exp/$_maxExp', QuestlingsTheme.surface, _exp / _maxExp),
               ],
             ),
           ),
@@ -225,32 +319,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ],
           ),
           const SizedBox(height: 16),
-          _buildQuestItem(
-            title: 'Hydration Potion',
-            description: 'Drink 8 glasses of water today to restore vitality.',
-            exp: '+15 EXP',
-            progress: 3,
-            maxProgress: 8,
-            expColor: const Color(0xFF6EABDE),
-          ),
-          _buildQuestItem(
-            title: 'Morning Patrol',
-            description: 'Complete a 20-minute walk outside.',
-            exp: 'DONE',
-            isDone: true,
-          ),
-          _buildQuestItem(
-            title: 'Study Grimoire',
-            description: 'Read 15 pages of any non-fiction book.',
-            exp: '+25 EXP',
-            expColor: QuestlingsTheme.surface,
-          ),
-          _buildQuestItem(
-            title: 'Save Data',
-            description: 'Write one sentence in your daily journal.',
-            exp: '+10 EXP',
-            expColor: QuestlingsTheme.surface,
-          ),
+          ..._quests.asMap().entries.map((entry) {
+            final index = entry.key;
+            final quest = entry.value;
+            return _buildQuestItem(
+              title: quest['title'],
+              description: quest['description'],
+              expAmount: quest['expReward'],
+              progress: quest['progress'],
+              maxProgress: quest['maxProgress'],
+              isDone: quest['isDone'],
+              expColor: quest['expColor'],
+              category: quest['category'],
+              currentQuestlingType: questlingType,
+              onTap: () => _completeQuestStep(index, questlingType),
+            );
+          }),
         ],
       ),
     );
@@ -293,18 +377,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildQuestItem({
     required String title,
     required String description,
-    required String exp,
+    required int expAmount,
     bool isDone = false,
     int? progress,
     int? maxProgress,
     Color? expColor,
+    String? category,
+    String? currentQuestlingType,
+    VoidCallback? onTap,
   }) {
+    final isTypeMatch = category != null && category == currentQuestlingType;
+    final displayExp = isTypeMatch && !isDone ? '+$expAmount EXP (+10%)' : (isDone ? 'DONE' : '+$expAmount EXP');
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: PixelContainer(
-        backgroundColor: isDone ? QuestlingsTheme.lightGreen : Colors.white,
-        padding: 12,
-        child: Row(
+      child: GestureDetector(
+        onTap: onTap,
+        child: PixelContainer(
+          backgroundColor: isDone ? QuestlingsTheme.lightGreen : Colors.white,
+          padding: 12,
+          child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
@@ -328,27 +419,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            decoration: isDone ? TextDecoration.lineThrough : null,
-                          ),
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  decoration: isDone ? TextDecoration.lineThrough : null,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isTypeMatch) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.star, color: Color(0xFFE6C200), size: 18),
+                            ],
+                          ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: expColor ?? QuestlingsTheme.surface,
-                          border: Border.all(color: QuestlingsTheme.shadow, width: 1.5),
+                          color: isTypeMatch && !isDone ? const Color(0xFFFFF9C4) : (expColor ?? QuestlingsTheme.surface),
+                          border: Border.all(
+                            color: isTypeMatch && !isDone ? const Color(0xFFE6C200) : QuestlingsTheme.shadow, 
+                            width: 1.5
+                          ),
                         ),
                         child: Text(
-                          exp,
+                          displayExp,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: QuestlingsTheme.shadow,
+                            color: isTypeMatch && !isDone ? const Color(0xFFB89B00) : (isDone ? Colors.white : QuestlingsTheme.shadow),
                           ),
                         ),
                       ),
@@ -400,6 +506,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ],
         ),
       ),
+    ),
     );
   }
 }
