@@ -10,8 +10,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:async';
 import 'theme.dart';
 
-<<<<<<< Updated upstream
-=======
 class MainLayout extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 
@@ -102,7 +100,6 @@ class MainLayout extends StatelessWidget {
 /// Set to false once the user record exists in public.users.
 bool needsUsernameSetup = true;
 
->>>>>>> Stashed changes
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();

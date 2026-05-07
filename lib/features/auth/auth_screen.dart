@@ -4,10 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/theme.dart';
-<<<<<<< Updated upstream
-=======
 import '../../core/widgets/pixel_button.dart';
->>>>>>> Stashed changes
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});

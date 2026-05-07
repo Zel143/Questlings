@@ -29,7 +29,7 @@ class QuestlingsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Questlings',
-      theme: QuestlingsTheme.retroTheme,
+      theme: QuestlingsTheme.themeData,
       routerConfig: router,
     );
   }
