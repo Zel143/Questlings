@@ -6,6 +6,121 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
+<<<<<<< Updated upstream
+=======
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  Map<String, dynamic>? _userProfile;
+  Map<String, dynamic>? _questling;
+  bool _isLoading = true;
+  late AnimationController _idleController;
+  late Animation<double> _idleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _idleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _idleAnimation = Tween<double>(begin: 0, end: -6).animate(
+      CurvedAnimation(parent: _idleController, curve: Curves.easeInOut),
+    );
+    _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _idleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) context.go('/login');
+      return;
+    }
+
+    try {
+      final profileResponse = await Supabase.instance.client
+          .from('users')
+          .select('''
+            *,
+            user_questlings:equipped_questling_id (
+              *,
+              questling_dictionary:questling_id (
+                name,
+                elemental_type,
+                sprite_path
+              )
+            )
+          ''')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profileResponse == null) {
+        if (mounted) context.go('/username');
+        return;
+      }
+
+      setState(() {
+        _userProfile = profileResponse;
+        if (profileResponse['user_questlings'] != null) {
+          _questling = profileResponse['user_questlings'];
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Returns the local asset path for the equipped questling's sprite.
+  /// Falls back to a mapping by elemental_type if sprite_path is null in the DB.
+  String _getSpritePath() {
+    final questlingData = _questling?['questling_dictionary'];
+    final spritePath = questlingData?['sprite_path'];
+    if (spritePath != null && spritePath.toString().isNotEmpty) {
+      return spritePath;
+    }
+    // Fallback mapping by elemental_type
+    final type = questlingData?['elemental_type'] ?? '';
+    switch (type) {
+      case 'Sports':
+        return 'assets/sprites/Sports-ling/Starter1.jpg';
+      case 'Tech':
+        return 'assets/sprites/Tech-ling/Starter2.jpg';
+      case 'Art':
+        return 'assets/sprites/Art-ling/Starter3.png';
+      case 'School':
+        return 'assets/sprites/Skool-ling/Starter4.jpg';
+      default:
+        return 'assets/sprites/Sports-ling/Starter1.jpg';
+    }
+  }
+
+  /// Returns a color associated with each questling type for visual theming.
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'Sports':
+        return const Color(0xFFD32F2F);
+      case 'Tech':
+        return const Color(0xFF7B1FA2);
+      case 'Art':
+        return const Color(0xFF2E7D32);
+      case 'School':
+        return const Color(0xFF795548);
+      default:
+        return QuestlingsTheme.shadow;
+    }
+  }
+
+  @override
+>>>>>>> Stashed changes
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
